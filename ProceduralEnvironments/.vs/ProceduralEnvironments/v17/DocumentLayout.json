@@ -3,12 +3,24 @@
   "WorkspaceRootPath": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|c:\\alejandra\\repos\\proceduralenvironments\\proceduralenvironments\\assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralwall.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralwall.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|solutionrelative:assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralwall.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|c:\\alejandra\\repos\\proceduralenvironments\\proceduralenvironments\\assets\\_project\\proceduralenvironment\\runtime\\generators\\wallmeshgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\assets\\_project\\proceduralenvironment\\runtime\\generators\\wallmeshgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|solutionrelative:assets\\_project\\proceduralenvironment\\runtime\\generators\\wallmeshgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralwallfeatures\\wallbricksfeature.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|solutionrelative:assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralwallfeatures\\wallbricksfeature.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralwallfeatures\\proceduralwallfeature.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|solutionrelative:assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralwallfeatures\\proceduralwallfeature.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralwallfeatures\\wallcornersfeature.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|solutionrelative:assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralwallfeatures\\wallcornersfeature.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralstroke.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -23,8 +35,8 @@
       "RelativeMoniker": "D:0:0:{C9916DCD-FA17-9960-008C-03E5BF71EEB1}|ProceduralEnvironment.Runtime.csproj|solutionrelative:assets\\_project\\proceduralenvironment\\runtime\\components\\proceduralworld.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Editor\\ProceduralEnvironment.Editor.asmdef||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Assets\\_Project\\ProceduralEnvironment\\Editor\\ProceduralEnvironment.Editor.asmdef||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{443F1B25-77AA-1AA1-9CBA-40B79A507693}|ProceduralEnvironment.Editor.csproj|C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Editor\\ProceduralEnvironment.Editor.asmdef||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{443F1B25-77AA-1AA1-9CBA-40B79A507693}|ProceduralEnvironment.Editor.csproj|solutionrelative:Assets\\_Project\\ProceduralEnvironment\\Editor\\ProceduralEnvironment.Editor.asmdef||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -34,8 +46,45 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 4,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "WallBricksFeature.cs",
+              "DocumentMoniker": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\WallBricksFeature.cs",
+              "RelativeDocumentMoniker": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\WallBricksFeature.cs",
+              "ToolTip": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\WallBricksFeature.cs",
+              "RelativeToolTip": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\WallBricksFeature.cs",
+              "ViewState": "AgIAAOIAAAAAAAAAAAAAAP4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-16T09:06:21.38Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "WallCornersFeature.cs",
+              "DocumentMoniker": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\WallCornersFeature.cs",
+              "RelativeDocumentMoniker": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\WallCornersFeature.cs",
+              "ToolTip": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\WallCornersFeature.cs",
+              "RelativeToolTip": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\WallCornersFeature.cs",
+              "ViewState": "AgIAAFUAAAAAAAAAAADwv3EAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-16T09:05:45.237Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ProceduralWallFeature.cs",
+              "DocumentMoniker": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\ProceduralWallFeature.cs",
+              "RelativeDocumentMoniker": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\ProceduralWallFeature.cs",
+              "ToolTip": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\ProceduralWallFeature.cs",
+              "RelativeToolTip": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWallFeatures\\ProceduralWallFeature.cs",
+              "ViewState": "AgIAAEwAAAAAAAAAAAAAAGgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-16T09:05:10.35Z"
+            },
             {
               "$type": "Document",
               "DocumentIndex": 1,
@@ -44,7 +93,7 @@
               "RelativeDocumentMoniker": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Generators\\WallMeshGenerator.cs",
               "ToolTip": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Generators\\WallMeshGenerator.cs",
               "RelativeToolTip": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Generators\\WallMeshGenerator.cs",
-              "ViewState": "AgIAAIwAAAAAAAAAAAAmwKUAAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAC4BAAAAAAAAAAAAAEoBAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-06-15T09:34:10.343Z",
               "EditorCaption": ""
@@ -57,14 +106,14 @@
               "RelativeDocumentMoniker": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWall.cs",
               "ToolTip": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWall.cs",
               "RelativeToolTip": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWall.cs",
-              "ViewState": "AgIAAD0AAAAAAAAAAAAmwFYAAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAEABAAAAAAAAAAAAAFwBAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-06-15T09:23:44.897Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 5,
               "Title": "ProceduralStroke.cs",
               "DocumentMoniker": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralStroke.cs",
               "RelativeDocumentMoniker": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralStroke.cs",
@@ -76,7 +125,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 6,
               "Title": "ProceduralElement.cs",
               "DocumentMoniker": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralElement.cs",
               "RelativeDocumentMoniker": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralElement.cs",
@@ -88,7 +137,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 7,
               "Title": "ProceduralWorld.cs",
               "DocumentMoniker": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWorld.cs",
               "RelativeDocumentMoniker": "Assets\\_Project\\ProceduralEnvironment\\Runtime\\Components\\ProceduralWorld.cs",
@@ -100,7 +149,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 8,
               "Title": "ProceduralEnvironment.Editor.asmdef",
               "DocumentMoniker": "C:\\ALEJANDRA\\REPOS\\ProceduralEnvironments\\ProceduralEnvironments\\Assets\\_Project\\ProceduralEnvironment\\Editor\\ProceduralEnvironment.Editor.asmdef",
               "RelativeDocumentMoniker": "Assets\\_Project\\ProceduralEnvironment\\Editor\\ProceduralEnvironment.Editor.asmdef",
@@ -108,8 +157,7 @@
               "RelativeToolTip": "Assets\\_Project\\ProceduralEnvironment\\Editor\\ProceduralEnvironment.Editor.asmdef",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001874|",
-              "WhenOpened": "2026-06-15T09:08:31.855Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T09:08:31.855Z"
             }
           ]
         }
