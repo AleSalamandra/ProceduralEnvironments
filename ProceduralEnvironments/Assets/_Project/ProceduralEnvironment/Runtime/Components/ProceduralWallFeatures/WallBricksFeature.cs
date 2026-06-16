@@ -36,17 +36,24 @@ namespace ProceduralEnvironment
         [SerializeField] private Vector3 brickPrefabScale = Vector3.one;
         [SerializeField] private float brickZOffset = 0.02f;
 
+        [Header("Brick Size")]
+        [SerializeField] private bool usePrefabBoundsForSpacing = true;
+        [SerializeField] private float manualBrickLength = 0.5f;
+        [SerializeField] private float manualBrickHeight = 0.25f;
+        [SerializeField] private float horizontalGap = 0.02f;
+        [SerializeField] private float verticalGap = 0.02f;
+
         [Header("Brick Distribution")]
-        [SerializeField] private float brickSpacingX = 0.5f;
-        [SerializeField] private float brickSpacingY = 0.25f;
-        [SerializeField] private float randomHorizontalAmount = 0.15f;
+        [SerializeField] private float randomHorizontalAmount = 0.05f;
         [SerializeField] private int randomSeed = 0;
         [SerializeField] private int maxBricks = 1000;
 
         protected override void OnValidate()
         {
-            brickSpacingX = Mathf.Max(0.01f, brickSpacingX);
-            brickSpacingY = Mathf.Max(0.01f, brickSpacingY);
+            manualBrickLength = Mathf.Max(0.01f, manualBrickLength);
+            manualBrickHeight = Mathf.Max(0.01f, manualBrickHeight);
+            horizontalGap = Mathf.Max(0f, horizontalGap);
+            verticalGap = Mathf.Max(0f, verticalGap);
             maxBricks = Mathf.Max(0, maxBricks);
 
             base.OnValidate();
@@ -57,15 +64,9 @@ namespace ProceduralEnvironment
             if (brickPrefab == null)
                 return;
 
-            List<Vector3> pathPoints = wall.GetGeneratedPathWorldPoints();
+            List<Vector3> centerPath = wall.GetGeneratedPathWorldPoints();
 
-            if (pathPoints == null || pathPoints.Count < 2)
-                return;
-
-            List<float> distances = CalculateDistances(pathPoints);
-            float totalLength = distances[^1];
-
-            if (totalLength <= 0.001f)
+            if (centerPath == null || centerPath.Count < 2)
                 return;
 
             Transform root = GetOrCreateGeneratedRoot();
@@ -75,11 +76,9 @@ namespace ProceduralEnvironment
 
             if (brickSide == WallSurfaceSide.Front || brickSide == WallSurfaceSide.Both)
             {
-                brickCount = GenerateBricksOnPath(
+                brickCount = GenerateBricksOnSurfacePath(
                     wall,
-                    pathPoints,
-                    distances,
-                    totalLength,
+                    centerPath,
                     1f,
                     root,
                     random,
@@ -89,11 +88,9 @@ namespace ProceduralEnvironment
 
             if (brickSide == WallSurfaceSide.Back || brickSide == WallSurfaceSide.Both)
             {
-                brickCount = GenerateBricksOnPath(
+                brickCount = GenerateBricksOnSurfacePath(
                     wall,
-                    pathPoints,
-                    distances,
-                    totalLength,
+                    centerPath,
                     -1f,
                     root,
                     random,
@@ -102,30 +99,56 @@ namespace ProceduralEnvironment
             }
         }
 
-        private int GenerateBricksOnPath(
+        private int GenerateBricksOnSurfacePath(
             ProceduralWall wall,
-            List<Vector3> pathPoints,
-            List<float> distances,
-            float totalLength,
+            List<Vector3> centerPath,
             float sideMultiplier,
             Transform parent,
             System.Random random,
             int brickCount)
         {
-            int rows = Mathf.FloorToInt(wall.Height / brickSpacingY);
-            int columns = Mathf.FloorToInt(totalLength / brickSpacingX);
+            List<Vector3> surfacePath = BuildSurfacePath(
+                centerPath,
+                wall.Thickness * 0.5f,
+                sideMultiplier
+            );
+
+            if (surfacePath.Count < 2)
+                return brickCount;
+
+            List<float> distances = CalculateDistances(surfacePath);
+            float totalLength = distances[distances.Count - 1];
+
+            if (totalLength <= 0.001f)
+                return brickCount;
+
+            Vector2 brickSize = GetBrickSize();
+
+            float brickLength = brickSize.x;
+            float brickHeight = brickSize.y;
+
+            float horizontalStep = brickLength + horizontalGap;
+            float verticalStep = brickHeight + verticalGap;
+
+            int rows = Mathf.FloorToInt(wall.Height / verticalStep);
 
             for (int y = 0; y < rows; y++)
             {
-                float rowHeight = (y + 0.5f) * brickSpacingY;
-                float rowOffset = GetRowOffset(y);
+                float rowHeight = (y + 0.5f) * verticalStep;
 
-                for (int x = 0; x < columns; x++)
+                float rowStartOffset = brickLength * 0.5f;
+
+                if (brickPattern == BrickPatternType.MatrixWithOffset && y % 2 == 1)
+                    rowStartOffset += horizontalStep * 0.5f;
+
+                float cursorDistance = rowStartOffset;
+
+                while (cursorDistance <= totalLength)
                 {
                     if (brickCount >= maxBricks)
                         return brickCount;
 
-                    float distanceOnPath = (x + 0.5f) * brickSpacingX + rowOffset;
+                    float sampledDistance = cursorDistance;
 
                     if (brickPattern == BrickPatternType.RandomHorizontal)
                     {
@@ -135,31 +158,34 @@ namespace ProceduralEnvironment
                             (float)random.NextDouble()
                         );
 
-                        distanceOnPath += randomOffset;
+                        sampledDistance += randomOffset;
                     }
 
-                    if (distanceOnPath > totalLength)
-                        continue;
+                    sampledDistance = Mathf.Clamp(sampledDistance, 0f, totalLength);
 
                     if (!SamplePath(
-                        pathPoints,
+                        surfacePath,
                         distances,
-                        distanceOnPath,
-                        out Vector3 pathPosition,
+                        sampledDistance,
+                        out Vector3 surfacePosition,
                         out Vector3 tangent))
                     {
+                        cursorDistance += horizontalStep;
                         continue;
                     }
 
                     Vector3 surfaceNormal = Vector3.Cross(Vector3.up, tangent).normalized * sideMultiplier;
 
                     if (surfaceNormal.sqrMagnitude < 0.001f)
+                    {
+                        cursorDistance += horizontalStep;
                         continue;
+                    }
 
                     Vector3 position =
-                        pathPosition +
+                        surfacePosition +
                         Vector3.up * rowHeight +
-                        surfaceNormal * ((wall.Thickness * 0.5f) + brickZOffset);
+                        surfaceNormal * brickZOffset;
 
                     Quaternion rotation = Quaternion.LookRotation(surfaceNormal, Vector3.up);
 
@@ -173,17 +199,142 @@ namespace ProceduralEnvironment
                         parent
                     );
 
-                    if (brick == null)
-                        continue;
+                    if (brick != null)
+                    {
+                        brick.name = $"Brick_{brickCount}";
+                        brick.transform.localScale = brickPrefabScale;
+                        brickCount++;
+                    }
 
-                    brick.name = $"Brick_{brickCount}";
-                    brick.transform.localScale = brickPrefabScale;
-
-                    brickCount++;
+                    cursorDistance += horizontalStep;
                 }
             }
 
             return brickCount;
+        }
+
+        private static List<Vector3> BuildSurfacePath(
+            List<Vector3> centerPath,
+            float surfaceOffset,
+            float sideMultiplier)
+        {
+            List<Vector3> surfacePath = new();
+
+            for (int i = 0; i < centerPath.Count; i++)
+            {
+                Vector3 tangent = GetPathTangent(centerPath, i);
+
+                if (tangent.sqrMagnitude < 0.001f)
+                    continue;
+
+                Vector3 normal = Vector3.Cross(Vector3.up, tangent).normalized * sideMultiplier;
+
+                Vector3 surfacePoint = centerPath[i] + normal * surfaceOffset;
+
+                surfacePath.Add(surfacePoint);
+            }
+
+            return surfacePath;
+        }
+
+        private static Vector3 GetPathTangent(List<Vector3> points, int index)
+        {
+            if (points == null || points.Count < 2)
+                return Vector3.forward;
+
+            if (index == 0)
+                return (points[1] - points[0]).normalized;
+
+            if (index == points.Count - 1)
+                return (points[index] - points[index - 1]).normalized;
+
+            Vector3 previous = (points[index] - points[index - 1]).normalized;
+            Vector3 next = (points[index + 1] - points[index]).normalized;
+
+            Vector3 tangent = (previous + next).normalized;
+
+            if (tangent.sqrMagnitude < 0.001f)
+                tangent = next;
+
+            return tangent;
+        }
+
+        private Vector2 GetBrickSize()
+        {
+            if (!usePrefabBoundsForSpacing || brickPrefab == null)
+            {
+                return new Vector2(
+                    manualBrickLength * Mathf.Abs(brickPrefabScale.x),
+                    manualBrickHeight * Mathf.Abs(brickPrefabScale.y)
+                );
+            }
+
+            Bounds localBounds = CalculatePrefabLocalBounds(brickPrefab);
+
+            float length = localBounds.size.x * Mathf.Abs(brickPrefabScale.x);
+            float height = localBounds.size.y * Mathf.Abs(brickPrefabScale.y);
+
+            if (length <= 0.001f)
+                length = manualBrickLength * Mathf.Abs(brickPrefabScale.x);
+
+            if (height <= 0.001f)
+                height = manualBrickHeight * Mathf.Abs(brickPrefabScale.y);
+
+            return new Vector2(length, height);
+        }
+
+        private static Bounds CalculatePrefabLocalBounds(GameObject prefab)
+        {
+            MeshFilter[] meshFilters = prefab.GetComponentsInChildren<MeshFilter>();
+
+            if (meshFilters == null || meshFilters.Length == 0)
+                return new Bounds(Vector3.zero, Vector3.zero);
+
+            bool hasBounds = false;
+            Bounds combinedBounds = new Bounds(Vector3.zero, Vector3.zero);
+
+            Matrix4x4 rootWorldToLocal = prefab.transform.worldToLocalMatrix;
+
+            foreach (MeshFilter meshFilter in meshFilters)
+            {
+                if (meshFilter == null || meshFilter.sharedMesh == null)
+                    continue;
+
+                Bounds meshBounds = meshFilter.sharedMesh.bounds;
+                Matrix4x4 meshToRoot = rootWorldToLocal * meshFilter.transform.localToWorldMatrix;
+
+                Vector3 min = meshBounds.min;
+                Vector3 max = meshBounds.max;
+
+                Vector3[] corners =
+                {
+                    new Vector3(min.x, min.y, min.z),
+                    new Vector3(max.x, min.y, min.z),
+                    new Vector3(min.x, max.y, min.z),
+                    new Vector3(max.x, max.y, min.z),
+                    new Vector3(min.x, min.y, max.z),
+                    new Vector3(max.x, min.y, max.z),
+                    new Vector3(min.x, max.y, max.z),
+                    new Vector3(max.x, max.y, max.z)
+                };
+
+                foreach (Vector3 corner in corners)
+                {
+                    Vector3 transformedCorner = meshToRoot.MultiplyPoint3x4(corner);
+
+                    if (!hasBounds)
+                    {
+                        combinedBounds = new Bounds(transformedCorner, Vector3.zero);
+                        hasBounds = true;
+                    }
+                    else
+                    {
+                        combinedBounds.Encapsulate(transformedCorner);
+                    }
+                }
+            }
+
+            return combinedBounds;
         }
 
         private static bool SamplePath(
@@ -199,7 +350,7 @@ namespace ProceduralEnvironment
             if (points == null || points.Count < 2)
                 return false;
 
-            targetDistance = Mathf.Clamp(targetDistance, 0f, distances[^1]);
+            targetDistance = Mathf.Clamp(targetDistance, 0f, distances[distances.Count - 1]);
 
             for (int i = 0; i < points.Count - 1; i++)
             {
@@ -222,8 +373,10 @@ namespace ProceduralEnvironment
                 return true;
             }
 
-            position = points[^1];
-            tangent = (points[^1] - points[^2]).normalized;
+            int last = points.Count - 1;
+
+            position = points[last];
+            tangent = (points[last] - points[last - 1]).normalized;
 
             return true;
         }
@@ -242,14 +395,6 @@ namespace ProceduralEnvironment
             }
 
             return distances;
-        }
-
-        private float GetRowOffset(int rowIndex)
-        {
-            if (brickPattern == BrickPatternType.MatrixWithOffset && rowIndex % 2 == 1)
-                return brickSpacingX * 0.5f;
-
-            return 0f;
         }
     }
 }
