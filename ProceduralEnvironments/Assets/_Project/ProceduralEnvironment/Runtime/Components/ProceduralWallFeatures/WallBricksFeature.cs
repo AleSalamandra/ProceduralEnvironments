@@ -43,6 +43,10 @@ namespace ProceduralEnvironment
         [SerializeField] private float horizontalGap = 0.02f;
         [SerializeField] private float verticalGap = 0.02f;
 
+        [Header("Opening Avoidance")]
+        [SerializeField] private float openingHorizontalPadding = 0.05f;
+        [SerializeField] private float openingVerticalPadding = 0.05f;
+
         [Header("Brick Distribution")]
         [SerializeField] private float randomHorizontalAmount = 0.05f;
         [SerializeField] private int randomSeed = 0;
@@ -54,6 +58,10 @@ namespace ProceduralEnvironment
             manualBrickHeight = Mathf.Max(0.01f, manualBrickHeight);
             horizontalGap = Mathf.Max(0f, horizontalGap);
             verticalGap = Mathf.Max(0f, verticalGap);
+
+            openingHorizontalPadding = Mathf.Max(0f, openingHorizontalPadding);
+            openingVerticalPadding = Mathf.Max(0f, openingVerticalPadding);
+
             maxBricks = Mathf.Max(0, maxBricks);
 
             base.OnValidate();
@@ -69,6 +77,9 @@ namespace ProceduralEnvironment
             if (centerPath == null || centerPath.Count < 2)
                 return;
 
+            List<float> centerDistances = CalculateDistances(centerPath);
+            List<WallOpeningData> openings = wall.GetOpeningData();
+
             Transform root = GetOrCreateGeneratedRoot();
             System.Random random = new System.Random(randomSeed);
 
@@ -79,6 +90,8 @@ namespace ProceduralEnvironment
                 brickCount = GenerateBricksOnSurfacePath(
                     wall,
                     centerPath,
+                    centerDistances,
+                    openings,
                     1f,
                     root,
                     random,
@@ -91,6 +104,8 @@ namespace ProceduralEnvironment
                 brickCount = GenerateBricksOnSurfacePath(
                     wall,
                     centerPath,
+                    centerDistances,
+                    openings,
                     -1f,
                     root,
                     random,
@@ -102,6 +117,8 @@ namespace ProceduralEnvironment
         private int GenerateBricksOnSurfacePath(
             ProceduralWall wall,
             List<Vector3> centerPath,
+            List<float> centerDistances,
+            List<WallOpeningData> openings,
             float sideMultiplier,
             Transform parent,
             System.Random random,
@@ -116,8 +133,8 @@ namespace ProceduralEnvironment
             if (surfacePath.Count < 2)
                 return brickCount;
 
-            List<float> distances = CalculateDistances(surfacePath);
-            float totalLength = distances[distances.Count - 1];
+            List<float> surfaceDistances = CalculateDistances(surfacePath);
+            float totalLength = surfaceDistances[surfaceDistances.Count - 1];
 
             if (totalLength <= 0.001f)
                 return brickCount;
@@ -165,10 +182,35 @@ namespace ProceduralEnvironment
 
                     if (!SamplePath(
                         surfacePath,
-                        distances,
+                        surfaceDistances,
                         sampledDistance,
                         out Vector3 surfacePosition,
                         out Vector3 tangent))
+                    {
+                        cursorDistance += horizontalStep;
+                        continue;
+                    }
+
+                    if (!TryProjectPointOnPath(
+                        surfacePosition,
+                        centerPath,
+                        centerDistances,
+                        out float centerDistanceAtBrick,
+                        out _))
+                    {
+                        cursorDistance += horizontalStep;
+                        continue;
+                    }
+
+                    bool overlapsOpening = BrickOverlapsAnyOpening(
+                        centerDistanceAtBrick,
+                        rowHeight,
+                        brickLength,
+                        brickHeight,
+                        openings
+                    );
+
+                    if (overlapsOpening)
                     {
                         cursorDistance += horizontalStep;
                         continue;
@@ -213,6 +255,45 @@ namespace ProceduralEnvironment
             return brickCount;
         }
 
+        private bool BrickOverlapsAnyOpening(
+            float brickCenterDistance,
+            float brickCenterHeight,
+            float brickLength,
+            float brickHeight,
+            List<WallOpeningData> openings)
+        {
+            if (openings == null || openings.Count == 0)
+                return false;
+
+            float brickStartDistance = brickCenterDistance - brickLength * 0.5f;
+            float brickEndDistance = brickCenterDistance + brickLength * 0.5f;
+
+            float brickBottom = brickCenterHeight - brickHeight * 0.5f;
+            float brickTop = brickCenterHeight + brickHeight * 0.5f;
+
+            foreach (WallOpeningData opening in openings)
+            {
+                float openingStart = opening.StartDistance - openingHorizontalPadding;
+                float openingEnd = opening.EndDistance + openingHorizontalPadding;
+
+                float openingBottom = opening.BottomHeight - openingVerticalPadding;
+                float openingTop = opening.TopHeight + openingVerticalPadding;
+
+                bool horizontalOverlap =
+                    brickEndDistance > openingStart &&
+                    brickStartDistance < openingEnd;
+
+                bool verticalOverlap =
+                    brickTop > openingBottom &&
+                    brickBottom < openingTop;
+
+                if (horizontalOverlap && verticalOverlap)
+                    return true;
+            }
+
+            return false;
+        }
+
         private static List<Vector3> BuildSurfacePath(
             List<Vector3> centerPath,
             float surfaceOffset,
@@ -228,7 +309,6 @@ namespace ProceduralEnvironment
                     continue;
 
                 Vector3 normal = Vector3.Cross(Vector3.up, tangent).normalized * sideMultiplier;
-
                 Vector3 surfacePoint = centerPath[i] + normal * surfaceOffset;
 
                 surfacePath.Add(surfacePoint);
@@ -379,6 +459,51 @@ namespace ProceduralEnvironment
             tangent = (points[last] - points[last - 1]).normalized;
 
             return true;
+        }
+
+        private static bool TryProjectPointOnPath(
+            Vector3 point,
+            List<Vector3> pathPoints,
+            List<float> distances,
+            out float distanceAlongPath,
+            out Vector3 projectedPoint)
+        {
+            distanceAlongPath = 0f;
+            projectedPoint = Vector3.zero;
+
+            if (pathPoints == null || pathPoints.Count < 2)
+                return false;
+
+            float bestDistanceSqr = float.MaxValue;
+
+            for (int i = 0; i < pathPoints.Count - 1; i++)
+            {
+                Vector3 a = pathPoints[i];
+                Vector3 b = pathPoints[i + 1];
+
+                Vector3 segment = b - a;
+                float segmentLengthSqr = segment.sqrMagnitude;
+
+                if (segmentLengthSqr <= 0.0001f)
+                    continue;
+
+                float t = Vector3.Dot(point - a, segment) / segmentLengthSqr;
+                t = Mathf.Clamp01(t);
+
+                Vector3 candidate = Vector3.Lerp(a, b, t);
+                float distanceSqr = (point - candidate).sqrMagnitude;
+
+                if (distanceSqr < bestDistanceSqr)
+                {
+                    bestDistanceSqr = distanceSqr;
+                    projectedPoint = candidate;
+
+                    float segmentLength = Mathf.Sqrt(segmentLengthSqr);
+                    distanceAlongPath = distances[i] + segmentLength * t;
+                }
+            }
+
+            return bestDistanceSqr < float.MaxValue;
         }
 
         private static List<float> CalculateDistances(List<Vector3> points)

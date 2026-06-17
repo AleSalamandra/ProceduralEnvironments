@@ -169,6 +169,8 @@ namespace ProceduralEnvironment
             if (meshFilter == null)
                 return;
 
+            List<WallOpeningData> openings = GetOpeningData();
+
             generatedMesh = WallMeshGenerator.Generate(
                 stroke,
                 transform,
@@ -177,7 +179,8 @@ namespace ProceduralEnvironment
                 textureScale,
                 roundCorners,
                 cornerRadius,
-                cornerSegments
+                cornerSegments,
+                openings
             );
 
             generatedMesh.name = "Generated_Wall_Mesh";
@@ -210,6 +213,53 @@ namespace ProceduralEnvironment
             }
 
             return worldPoints;
+        }
+
+        public List<WallOpeningData> GetOpeningData()
+        {
+            List<WallOpeningData> openings = new();
+
+            WallOpeningMarker[] markers = GetComponentsInChildren<WallOpeningMarker>();
+
+            if (markers == null || markers.Length == 0)
+                return openings;
+
+            List<Vector3> pathPoints = GetGeneratedPathWorldPoints();
+
+            if (pathPoints == null || pathPoints.Count < 2)
+                return openings;
+
+            List<float> distances = CalculatePathDistances(pathPoints);
+
+            foreach (WallOpeningMarker marker in markers)
+            {
+                if (marker == null || !marker.isActiveAndEnabled)
+                    continue;
+
+                if (!TryProjectPointOnPath(
+                    marker.transform.position,
+                    pathPoints,
+                    distances,
+                    out float distanceAlongWall,
+                    out Vector3 projectedPosition))
+                {
+                    continue;
+                }
+
+                WallOpeningData opening = new WallOpeningData
+                {
+                    OpeningType = marker.OpeningType,
+                    CenterDistance = distanceAlongWall,
+                    Width = marker.Width,
+                    BottomHeight = marker.BottomHeight,
+                    Height = marker.Height,
+                    WorldPosition = projectedPosition
+                };
+
+                openings.Add(opening);
+            }
+
+            return openings;
         }
 
         private void RegenerateAssignedFeatures()
@@ -275,6 +325,67 @@ namespace ProceduralEnvironment
                 meshRenderer = GetComponent<MeshRenderer>();
         }
 
+        private static List<float> CalculatePathDistances(List<Vector3> points)
+        {
+            List<float> distances = new();
+            float accumulatedDistance = 0f;
+
+            distances.Add(0f);
+
+            for (int i = 1; i < points.Count; i++)
+            {
+                accumulatedDistance += Vector3.Distance(points[i - 1], points[i]);
+                distances.Add(accumulatedDistance);
+            }
+
+            return distances;
+        }
+
+        private static bool TryProjectPointOnPath(
+            Vector3 point,
+            List<Vector3> pathPoints,
+            List<float> distances,
+            out float distanceAlongPath,
+            out Vector3 projectedPoint)
+        {
+            distanceAlongPath = 0f;
+            projectedPoint = Vector3.zero;
+
+            if (pathPoints == null || pathPoints.Count < 2)
+                return false;
+
+            float bestDistanceSqr = float.MaxValue;
+
+            for (int i = 0; i < pathPoints.Count - 1; i++)
+            {
+                Vector3 a = pathPoints[i];
+                Vector3 b = pathPoints[i + 1];
+
+                Vector3 segment = b - a;
+                float segmentLengthSqr = segment.sqrMagnitude;
+
+                if (segmentLengthSqr <= 0.0001f)
+                    continue;
+
+                float t = Vector3.Dot(point - a, segment) / segmentLengthSqr;
+                t = Mathf.Clamp01(t);
+
+                Vector3 candidate = Vector3.Lerp(a, b, t);
+                float distanceSqr = (point - candidate).sqrMagnitude;
+
+                if (distanceSqr < bestDistanceSqr)
+                {
+                    bestDistanceSqr = distanceSqr;
+                    projectedPoint = candidate;
+
+                    float segmentLength = Mathf.Sqrt(segmentLengthSqr);
+                    distanceAlongPath = distances[i] + segmentLength * t;
+                }
+            }
+
+            return bestDistanceSqr < float.MaxValue;
+        }
+
 #if UNITY_EDITOR
         private int ComputeEditorHash()
         {
@@ -328,21 +439,38 @@ namespace ProceduralEnvironment
 
         private void OnDrawGizmos()
         {
-            if (stroke == null || stroke.Count == 0)
+            if (stroke != null && stroke.Count > 0)
+            {
+                Gizmos.color = Color.yellow;
+
+                for (int i = 0; i < stroke.Count; i++)
+                {
+                    Vector3 point = stroke.GetPoint(i);
+                    Gizmos.DrawSphere(point, 0.12f);
+
+                    if (i < stroke.Count - 1)
+                    {
+                        Vector3 nextPoint = stroke.GetPoint(i + 1);
+                        Gizmos.DrawLine(point, nextPoint);
+                    }
+                }
+            }
+
+            DrawOpeningDebugGizmos();
+        }
+
+        private void DrawOpeningDebugGizmos()
+        {
+            List<WallOpeningData> openings = GetOpeningData();
+
+            if (openings == null || openings.Count == 0)
                 return;
 
-            Gizmos.color = Color.yellow;
+            Gizmos.color = Color.magenta;
 
-            for (int i = 0; i < stroke.Count; i++)
+            foreach (WallOpeningData opening in openings)
             {
-                Vector3 point = stroke.GetPoint(i);
-                Gizmos.DrawSphere(point, 0.12f);
-
-                if (i < stroke.Count - 1)
-                {
-                    Vector3 nextPoint = stroke.GetPoint(i + 1);
-                    Gizmos.DrawLine(point, nextPoint);
-                }
+                Gizmos.DrawSphere(opening.WorldPosition, 0.15f);
             }
         }
     }
