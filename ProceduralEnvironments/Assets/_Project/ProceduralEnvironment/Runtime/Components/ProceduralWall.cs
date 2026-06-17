@@ -253,6 +253,11 @@ namespace ProceduralEnvironment
                     Width = marker.Width,
                     BottomHeight = marker.BottomHeight,
                     Height = marker.Height,
+
+                    RoundTopCorners = marker.RoundTopCorners,
+                    TopCornerRadius = marker.TopCornerRadius,
+                    TopCornerSegments = marker.TopCornerSegments,
+
                     WorldPosition = projectedPosition
                 };
 

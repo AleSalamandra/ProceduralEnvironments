@@ -21,6 +21,11 @@ namespace ProceduralEnvironment
         [SerializeField] private float height = 2f;
         [SerializeField] private float bottomHeight = 0f;
 
+        [Header("Rounded Top Corners")]
+        [SerializeField] private bool roundTopCorners = false;
+        [SerializeField] private float topCornerRadius = 0.2f;
+        [SerializeField] private int topCornerSegments = 4;
+
         [Header("Editor Display")]
         [SerializeField] private Color gizmoColor = new Color(0f, 0.7f, 1f, 0.25f);
 
@@ -32,11 +37,18 @@ namespace ProceduralEnvironment
         public float BottomHeight => bottomHeight;
         public float TopHeight => bottomHeight + height;
 
+        public bool RoundTopCorners => roundTopCorners;
+        public float TopCornerRadius => GetSafeTopCornerRadius();
+        public int TopCornerSegments => topCornerSegments;
+
         private void OnValidate()
         {
             width = Mathf.Max(0.01f, width);
             height = Mathf.Max(0.01f, height);
             bottomHeight = Mathf.Max(0f, bottomHeight);
+
+            topCornerRadius = Mathf.Max(0f, topCornerRadius);
+            topCornerSegments = Mathf.Clamp(topCornerSegments, 1, 16);
 
             if (openingType == WallOpeningType.Door)
                 bottomHeight = 0f;
@@ -62,6 +74,18 @@ namespace ProceduralEnvironment
             if (!Application.isPlaying)
                 RequestWallRegenerate();
 #endif
+        }
+
+        private float GetSafeTopCornerRadius()
+        {
+            if (!roundTopCorners)
+                return 0f;
+
+            return Mathf.Min(
+                topCornerRadius,
+                width * 0.5f,
+                height
+            );
         }
 
         private void UpdateCollider()

@@ -5,6 +5,8 @@ namespace ProceduralEnvironment
 {
     public static class WallMeshGenerator
     {
+        private const float Epsilon = 0.001f;
+
         public static Mesh Generate(
             ProceduralStroke stroke,
             Transform owner,
@@ -18,6 +20,8 @@ namespace ProceduralEnvironment
         {
             Mesh mesh = new Mesh();
             mesh.name = "Generated_Wall_Mesh";
+
+            textureScale = Mathf.Max(0.0001f, textureScale);
 
             List<Vector3> sourcePoints = BuildLocalPath(
                 stroke,
@@ -33,8 +37,8 @@ namespace ProceduralEnvironment
             List<float> pathDistances = CalculateDistances(sourcePoints);
             List<float> stationDistances = BuildStationDistances(pathDistances, openings);
 
-            List<Vector3> stationPoints = new();
-            List<Vector3> stationTangents = new();
+            List<Vector3> stationPoints = new List<Vector3>();
+            List<Vector3> stationTangents = new List<Vector3>();
 
             for (int i = 0; i < stationDistances.Count; i++)
             {
@@ -50,9 +54,9 @@ namespace ProceduralEnvironment
                 stationTangents.Add(tangent);
             }
 
-            List<Vector3> vertices = new();
-            List<int> triangles = new();
-            List<Vector2> uvs = new();
+            List<Vector3> vertices = new List<Vector3>();
+            List<int> triangles = new List<int>();
+            List<Vector2> uvs = new List<Vector2>();
 
             float halfThickness = thickness * 0.5f;
 
@@ -60,7 +64,6 @@ namespace ProceduralEnvironment
             {
                 float d0 = stationDistances[i];
                 float d1 = stationDistances[i + 1];
-                float midDistance = (d0 + d1) * 0.5f;
 
                 Vector3 p0 = stationPoints[i];
                 Vector3 p1 = stationPoints[i + 1];
@@ -76,38 +79,29 @@ namespace ProceduralEnvironment
                 Vector3 left1 = p1 - normal1 * halfThickness;
                 Vector3 right1 = p1 + normal1 * halfThickness;
 
-                List<Vector2> solidBands = GetSolidVerticalBands(
-                    midDistance,
+                AddWallFacesForStationSegment(
+                    left0,
+                    right0,
+                    left1,
+                    right1,
+                    d0,
+                    d1,
                     height,
-                    openings
+                    openings,
+                    textureScale,
+                    vertices,
+                    triangles,
+                    uvs
                 );
 
-                foreach (Vector2 band in solidBands)
+                if (!ShouldSkipTopFace(d0, d1, height, openings))
                 {
-                    float y0 = band.x;
-                    float y1 = band.y;
-
-                    if (y1 <= y0)
-                        continue;
-
-                    AddVerticalQuad(
+                    AddTopQuad(
                         left0,
-                        left1,
-                        y0,
-                        y1,
-                        d0,
-                        d1,
-                        textureScale,
-                        vertices,
-                        triangles,
-                        uvs
-                    );
-
-                    AddVerticalQuadFlipped(
                         right0,
+                        left1,
                         right1,
-                        y0,
-                        y1,
+                        height,
                         d0,
                         d1,
                         textureScale,
@@ -116,25 +110,12 @@ namespace ProceduralEnvironment
                         uvs
                     );
                 }
-
-                AddTopQuad(
-                    left0,
-                    right0,
-                    left1,
-                    right1,
-                    height,
-                    d0,
-                    d1,
-                    textureScale,
-                    vertices,
-                    triangles,
-                    uvs
-                );
             }
 
-            AddOpeningReveals(
+            AddOpeningBridges(
                 sourcePoints,
                 pathDistances,
+                stationDistances,
                 openings,
                 halfThickness,
                 height,
@@ -204,9 +185,193 @@ namespace ProceduralEnvironment
             return sourcePoints;
         }
 
-        private static void AddOpeningReveals(
+        private static List<float> BuildStationDistances(
+            List<float> pathDistances,
+            IReadOnlyList<WallOpeningData> openings)
+        {
+            List<float> stations = new List<float>(pathDistances);
+
+            if (pathDistances == null || pathDistances.Count == 0)
+                return stations;
+
+            float totalLength = pathDistances[pathDistances.Count - 1];
+
+            if (openings != null)
+            {
+                foreach (WallOpeningData opening in openings)
+                {
+                    float start = Mathf.Clamp(opening.StartDistance, 0f, totalLength);
+                    float end = Mathf.Clamp(opening.EndDistance, 0f, totalLength);
+
+                    AddDistanceIfValid(stations, start);
+                    AddDistanceIfValid(stations, end);
+
+                    if (opening.RoundTopCorners && GetOpeningSafeRadius(opening) > Epsilon)
+                    {
+                        AddRoundedOpeningStations(stations, opening, totalLength);
+                    }
+                }
+            }
+
+            SortAndCleanDistances(stations);
+
+            return stations;
+        }
+
+        private static void AddRoundedOpeningStations(
+            List<float> stations,
+            WallOpeningData opening,
+            float totalLength)
+        {
+            float radius = GetOpeningSafeRadius(opening);
+
+            if (radius <= Epsilon)
+                return;
+
+            int segments = Mathf.Clamp(opening.TopCornerSegments, 1, 32);
+
+            float start = Mathf.Clamp(opening.StartDistance, 0f, totalLength);
+            float end = Mathf.Clamp(opening.EndDistance, 0f, totalLength);
+
+            float leftArcEnd = Mathf.Clamp(start + radius, 0f, totalLength);
+            float rightArcStart = Mathf.Clamp(end - radius, 0f, totalLength);
+
+            AddDistanceIfValid(stations, leftArcEnd);
+            AddDistanceIfValid(stations, rightArcStart);
+
+            for (int i = 1; i < segments; i++)
+            {
+                float t = i / (float)segments;
+
+                AddDistanceIfValid(stations, Mathf.Lerp(start, leftArcEnd, t));
+                AddDistanceIfValid(stations, Mathf.Lerp(rightArcStart, end, t));
+            }
+        }
+
+        private static void AddWallFacesForStationSegment(
+            Vector3 left0,
+            Vector3 right0,
+            Vector3 left1,
+            Vector3 right1,
+            float d0,
+            float d1,
+            float wallHeight,
+            IReadOnlyList<WallOpeningData> openings,
+            float textureScale,
+            List<Vector3> vertices,
+            List<int> triangles,
+            List<Vector2> uvs)
+        {
+            if (!TryGetOpeningForSegment(d0, d1, openings, out WallOpeningData opening))
+            {
+                AddVariableVerticalQuad(
+                    left0,
+                    left1,
+                    0f,
+                    0f,
+                    wallHeight,
+                    wallHeight,
+                    d0,
+                    d1,
+                    textureScale,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+
+                AddVariableVerticalQuadFlipped(
+                    right0,
+                    right1,
+                    0f,
+                    0f,
+                    wallHeight,
+                    wallHeight,
+                    d0,
+                    d1,
+                    textureScale,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+
+                return;
+            }
+
+            float cutBottom = Mathf.Clamp(opening.BottomHeight, 0f, wallHeight);
+            float cutTop0 = GetOpeningCutTopAtDistance(opening, d0, wallHeight);
+            float cutTop1 = GetOpeningCutTopAtDistance(opening, d1, wallHeight);
+
+            if (cutBottom > Epsilon)
+            {
+                AddVariableVerticalQuad(
+                    left0,
+                    left1,
+                    0f,
+                    0f,
+                    cutBottom,
+                    cutBottom,
+                    d0,
+                    d1,
+                    textureScale,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+
+                AddVariableVerticalQuadFlipped(
+                    right0,
+                    right1,
+                    0f,
+                    0f,
+                    cutBottom,
+                    cutBottom,
+                    d0,
+                    d1,
+                    textureScale,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+            }
+
+            if (cutTop0 < wallHeight - Epsilon || cutTop1 < wallHeight - Epsilon)
+            {
+                AddVariableVerticalQuad(
+                    left0,
+                    left1,
+                    cutTop0,
+                    cutTop1,
+                    wallHeight,
+                    wallHeight,
+                    d0,
+                    d1,
+                    textureScale,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+
+                AddVariableVerticalQuadFlipped(
+                    right0,
+                    right1,
+                    cutTop0,
+                    cutTop1,
+                    wallHeight,
+                    wallHeight,
+                    d0,
+                    d1,
+                    textureScale,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+            }
+        }
+
+        private static void AddOpeningBridges(
             List<Vector3> pathPoints,
             List<float> pathDistances,
+            List<float> stationDistances,
             IReadOnlyList<WallOpeningData> openings,
             float halfThickness,
             float wallHeight,
@@ -222,43 +387,25 @@ namespace ProceduralEnvironment
 
             foreach (WallOpeningData opening in openings)
             {
-                float startDistance = Mathf.Clamp(opening.StartDistance, 0f, totalLength);
-                float endDistance = Mathf.Clamp(opening.EndDistance, 0f, totalLength);
-
-                if (endDistance <= startDistance)
-                    continue;
+                float start = Mathf.Clamp(opening.StartDistance, 0f, totalLength);
+                float end = Mathf.Clamp(opening.EndDistance, 0f, totalLength);
 
                 float bottom = Mathf.Clamp(opening.BottomHeight, 0f, wallHeight);
                 float top = Mathf.Clamp(opening.TopHeight, 0f, wallHeight);
 
-                if (top <= bottom)
+                if (end <= start || top <= bottom)
                     continue;
 
-                SamplePath(
+                float radius = GetOpeningSafeRadius(opening);
+                float sideTop = top - radius;
+
+                AddVerticalOpeningBridge(
                     pathPoints,
                     pathDistances,
-                    startDistance,
-                    out Vector3 startCenter,
-                    out Vector3 startTangent
-                );
-
-                SamplePath(
-                    pathPoints,
-                    pathDistances,
-                    endDistance,
-                    out Vector3 endCenter,
-                    out Vector3 endTangent
-                );
-
-                Vector3 startNormal = Vector3.Cross(Vector3.up, startTangent).normalized;
-                Vector3 endNormal = Vector3.Cross(Vector3.up, endTangent).normalized;
-
-                AddSideReveal(
-                    startCenter,
-                    startNormal,
-                    halfThickness,
+                    start,
                     bottom,
-                    top,
+                    sideTop,
+                    halfThickness,
                     textureScale,
                     true,
                     vertices,
@@ -266,12 +413,13 @@ namespace ProceduralEnvironment
                     uvs
                 );
 
-                AddSideReveal(
-                    endCenter,
-                    endNormal,
-                    halfThickness,
+                AddVerticalOpeningBridge(
+                    pathPoints,
+                    pathDistances,
+                    end,
                     bottom,
-                    top,
+                    sideTop,
+                    halfThickness,
                     textureScale,
                     false,
                     vertices,
@@ -279,34 +427,40 @@ namespace ProceduralEnvironment
                     uvs
                 );
 
-                if (top < wallHeight - 0.001f)
+                if (bottom > Epsilon)
                 {
-                    AddHorizontalReveal(
-                        startCenter,
-                        startNormal,
-                        endCenter,
-                        endNormal,
+                    AddSegmentedOpeningBridgeAlongPath(
+                        pathPoints,
+                        pathDistances,
+                        stationDistances,
+                        opening,
+                        start,
+                        end,
+                        bottom,
+                        true,
                         halfThickness,
-                        top,
+                        wallHeight,
                         textureScale,
-                        false,
                         vertices,
                         triangles,
                         uvs
                     );
                 }
 
-                if (bottom > 0.001f)
+                if (top < wallHeight - Epsilon)
                 {
-                    AddHorizontalReveal(
-                        startCenter,
-                        startNormal,
-                        endCenter,
-                        endNormal,
+                    AddSegmentedOpeningBridgeAlongPath(
+                        pathPoints,
+                        pathDistances,
+                        stationDistances,
+                        opening,
+                        start,
+                        end,
+                        top,
+                        false,
                         halfThickness,
-                        bottom,
+                        wallHeight,
                         textureScale,
-                        true,
                         vertices,
                         triangles,
                         uvs
@@ -315,251 +469,301 @@ namespace ProceduralEnvironment
             }
         }
 
-        private static void AddSideReveal(
-            Vector3 center,
-            Vector3 normal,
-            float halfThickness,
+        private static void AddVerticalOpeningBridge(
+            List<Vector3> pathPoints,
+            List<float> pathDistances,
+            float distance,
             float bottom,
             float top,
+            float halfThickness,
             float textureScale,
             bool isStartSide,
             List<Vector3> vertices,
             List<int> triangles,
             List<Vector2> uvs)
         {
-            Vector3 leftBottom = center - normal * halfThickness + Vector3.up * bottom;
-            Vector3 rightBottom = center + normal * halfThickness + Vector3.up * bottom;
-            Vector3 leftTop = center - normal * halfThickness + Vector3.up * top;
-            Vector3 rightTop = center + normal * halfThickness + Vector3.up * top;
+            if (top <= bottom + Epsilon)
+                return;
 
-            float thicknessUv = (halfThickness * 2f) / textureScale;
-            float heightUv = (top - bottom) / textureScale;
+            SamplePath(
+                pathPoints,
+                pathDistances,
+                distance,
+                out _,
+                out Vector3 tangent
+            );
 
-            if (isStartSide)
-            {
-                AddQuad(
-                    leftBottom,
-                    rightBottom,
-                    rightTop,
-                    leftTop,
-                    new Vector2(0f, 0f),
-                    new Vector2(thicknessUv, 0f),
-                    new Vector2(thicknessUv, heightUv),
-                    new Vector2(0f, heightUv),
-                    vertices,
-                    triangles,
-                    uvs
-                );
-            }
-            else
-            {
-                AddQuad(
-                    rightBottom,
-                    leftBottom,
-                    leftTop,
-                    rightTop,
-                    new Vector2(0f, 0f),
-                    new Vector2(thicknessUv, 0f),
-                    new Vector2(thicknessUv, heightUv),
-                    new Vector2(0f, heightUv),
-                    vertices,
-                    triangles,
-                    uvs
-                );
-            }
-        }
+            Vector3 desiredNormal = isStartSide ? tangent : -tangent;
 
-        private static void AddHorizontalReveal(
-            Vector3 startCenter,
-            Vector3 startNormal,
-            Vector3 endCenter,
-            Vector3 endNormal,
-            float halfThickness,
-            float y,
-            float textureScale,
-            bool isBottomReveal,
-            List<Vector3> vertices,
-            List<int> triangles,
-            List<Vector2> uvs)
-        {
-            Vector3 startLeft = startCenter - startNormal * halfThickness + Vector3.up * y;
-            Vector3 startRight = startCenter + startNormal * halfThickness + Vector3.up * y;
-            Vector3 endLeft = endCenter - endNormal * halfThickness + Vector3.up * y;
-            Vector3 endRight = endCenter + endNormal * halfThickness + Vector3.up * y;
+            Vector2 pointA = new Vector2(distance, bottom);
+            Vector2 pointB = new Vector2(distance, top);
 
-            float lengthUv = Vector3.Distance(startCenter, endCenter) / textureScale;
-            float thicknessUv = (halfThickness * 2f) / textureScale;
-
-            if (isBottomReveal)
-            {
-                AddQuad(
-                    startLeft,
-                    endLeft,
-                    endRight,
-                    startRight,
-                    new Vector2(0f, 0f),
-                    new Vector2(lengthUv, 0f),
-                    new Vector2(lengthUv, thicknessUv),
-                    new Vector2(0f, thicknessUv),
-                    vertices,
-                    triangles,
-                    uvs
-                );
-            }
-            else
-            {
-                AddQuad(
-                    startRight,
-                    endRight,
-                    endLeft,
-                    startLeft,
-                    new Vector2(0f, 0f),
-                    new Vector2(lengthUv, 0f),
-                    new Vector2(lengthUv, thicknessUv),
-                    new Vector2(0f, thicknessUv),
-                    vertices,
-                    triangles,
-                    uvs
-                );
-            }
-        }
-
-        private static List<float> BuildStationDistances(
-            List<float> pathDistances,
-            IReadOnlyList<WallOpeningData> openings)
-        {
-            List<float> stations = new(pathDistances);
-
-            if (pathDistances == null || pathDistances.Count == 0)
-                return stations;
-
-            float totalLength = pathDistances[pathDistances.Count - 1];
-
-            if (openings != null)
-            {
-                foreach (WallOpeningData opening in openings)
-                {
-                    AddDistanceIfValid(stations, Mathf.Clamp(opening.StartDistance, 0f, totalLength));
-                    AddDistanceIfValid(stations, Mathf.Clamp(opening.EndDistance, 0f, totalLength));
-                }
-            }
-
-            stations.Sort();
-
-            for (int i = stations.Count - 1; i > 0; i--)
-            {
-                if (Mathf.Abs(stations[i] - stations[i - 1]) < 0.001f)
-                    stations.RemoveAt(i);
-            }
-
-            return stations;
-        }
-
-        private static void AddDistanceIfValid(List<float> distances, float value)
-        {
-            for (int i = 0; i < distances.Count; i++)
-            {
-                if (Mathf.Abs(distances[i] - value) < 0.001f)
-                    return;
-            }
-
-            distances.Add(value);
-        }
-
-        private static List<Vector2> GetSolidVerticalBands(
-            float distance,
-            float wallHeight,
-            IReadOnlyList<WallOpeningData> openings)
-        {
-            List<Vector2> bands = new();
-            bands.Add(new Vector2(0f, wallHeight));
-
-            if (openings == null)
-                return bands;
-
-            foreach (WallOpeningData opening in openings)
-            {
-                bool insideOpeningHorizontally =
-                    distance >= opening.StartDistance &&
-                    distance <= opening.EndDistance;
-
-                if (!insideOpeningHorizontally)
-                    continue;
-
-                float cutBottom = Mathf.Clamp(opening.BottomHeight, 0f, wallHeight);
-                float cutTop = Mathf.Clamp(opening.TopHeight, 0f, wallHeight);
-
-                if (cutTop <= cutBottom)
-                    continue;
-
-                bands = SubtractBand(bands, cutBottom, cutTop);
-            }
-
-            return bands;
-        }
-
-        private static List<Vector2> SubtractBand(
-            List<Vector2> bands,
-            float cutBottom,
-            float cutTop)
-        {
-            List<Vector2> result = new();
-
-            foreach (Vector2 band in bands)
-            {
-                float bandBottom = band.x;
-                float bandTop = band.y;
-
-                if (cutTop <= bandBottom || cutBottom >= bandTop)
-                {
-                    result.Add(band);
-                    continue;
-                }
-
-                if (cutBottom > bandBottom)
-                    result.Add(new Vector2(bandBottom, cutBottom));
-
-                if (cutTop < bandTop)
-                    result.Add(new Vector2(cutTop, bandTop));
-            }
-
-            return result;
-        }
-
-        private static void AddVerticalQuad(
-            Vector3 bottomA,
-            Vector3 bottomB,
-            float y0,
-            float y1,
-            float d0,
-            float d1,
-            float textureScale,
-            List<Vector3> vertices,
-            List<int> triangles,
-            List<Vector2> uvs)
-        {
-            Vector3 v0 = bottomA + Vector3.up * y0;
-            Vector3 v1 = bottomB + Vector3.up * y0;
-            Vector3 v2 = bottomB + Vector3.up * y1;
-            Vector3 v3 = bottomA + Vector3.up * y1;
-
-            AddQuad(
-                v0, v1, v2, v3,
-                new Vector2(d0 / textureScale, y0 / textureScale),
-                new Vector2(d1 / textureScale, y0 / textureScale),
-                new Vector2(d1 / textureScale, y1 / textureScale),
-                new Vector2(d0 / textureScale, y1 / textureScale),
+            AddOpeningBridgeQuad(
+                pathPoints,
+                pathDistances,
+                pointA,
+                pointB,
+                halfThickness,
+                textureScale,
+                desiredNormal,
                 vertices,
                 triangles,
                 uvs
             );
         }
 
-        private static void AddVerticalQuadFlipped(
+        private static void AddSegmentedOpeningBridgeAlongPath(
+            List<Vector3> pathPoints,
+            List<float> pathDistances,
+            List<float> stationDistances,
+            WallOpeningData opening,
+            float start,
+            float end,
+            float fallbackHeight,
+            bool isBottomBridge,
+            float halfThickness,
+            float wallHeight,
+            float textureScale,
+            List<Vector3> vertices,
+            List<int> triangles,
+            List<Vector2> uvs)
+        {
+            List<float> bridgeStations = GetDistancesBetween(
+                stationDistances,
+                start,
+                end
+            );
+
+            if (bridgeStations.Count < 2)
+                return;
+
+            for (int i = 0; i < bridgeStations.Count - 1; i++)
+            {
+                float d0 = bridgeStations[i];
+                float d1 = bridgeStations[i + 1];
+
+                float h0 = isBottomBridge
+                    ? fallbackHeight
+                    : GetOpeningCutTopAtDistance(opening, d0, wallHeight);
+
+                float h1 = isBottomBridge
+                    ? fallbackHeight
+                    : GetOpeningCutTopAtDistance(opening, d1, wallHeight);
+
+                Vector2 pointA = new Vector2(d0, h0);
+                Vector2 pointB = new Vector2(d1, h1);
+
+                Vector3 desiredNormal = isBottomBridge ? Vector3.up : Vector3.down;
+
+                AddOpeningBridgeQuad(
+                    pathPoints,
+                    pathDistances,
+                    pointA,
+                    pointB,
+                    halfThickness,
+                    textureScale,
+                    desiredNormal,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+            }
+        }
+
+        private static void AddOpeningBridgeQuad(
+            List<Vector3> pathPoints,
+            List<float> pathDistances,
+            Vector2 pointA,
+            Vector2 pointB,
+            float halfThickness,
+            float textureScale,
+            Vector3 desiredNormal,
+            List<Vector3> vertices,
+            List<int> triangles,
+            List<Vector2> uvs)
+        {
+            float distanceA = pointA.x;
+            float heightA = pointA.y;
+
+            float distanceB = pointB.x;
+            float heightB = pointB.y;
+
+            if (Mathf.Abs(distanceA - distanceB) < Epsilon &&
+                Mathf.Abs(heightA - heightB) < Epsilon)
+            {
+                return;
+            }
+
+            SamplePath(
+                pathPoints,
+                pathDistances,
+                distanceA,
+                out Vector3 centerA,
+                out Vector3 tangentA
+            );
+
+            SamplePath(
+                pathPoints,
+                pathDistances,
+                distanceB,
+                out Vector3 centerB,
+                out Vector3 tangentB
+            );
+
+            Vector3 normalA = Vector3.Cross(Vector3.up, tangentA).normalized;
+            Vector3 normalB = Vector3.Cross(Vector3.up, tangentB).normalized;
+
+            Vector3 leftA = centerA - normalA * halfThickness + Vector3.up * heightA;
+            Vector3 rightA = centerA + normalA * halfThickness + Vector3.up * heightA;
+
+            Vector3 leftB = centerB - normalB * halfThickness + Vector3.up * heightB;
+            Vector3 rightB = centerB + normalB * halfThickness + Vector3.up * heightB;
+
+            float bridgeLength = Vector2.Distance(pointA, pointB) / textureScale;
+            float bridgeDepth = (halfThickness * 2f) / textureScale;
+
+            AddQuadFacingNormal(
+                rightA,
+                rightB,
+                leftB,
+                leftA,
+                new Vector2(0f, 0f),
+                new Vector2(bridgeLength, 0f),
+                new Vector2(bridgeLength, bridgeDepth),
+                new Vector2(0f, bridgeDepth),
+                desiredNormal,
+                vertices,
+                triangles,
+                uvs
+            );
+        }
+
+        private static List<float> GetDistancesBetween(
+            List<float> allDistances,
+            float start,
+            float end)
+        {
+            List<float> result = new List<float>();
+
+            AddDistanceIfValid(result, start);
+
+            for (int i = 0; i < allDistances.Count; i++)
+            {
+                float distance = allDistances[i];
+
+                if (distance > start + Epsilon && distance < end - Epsilon)
+                    AddDistanceIfValid(result, distance);
+            }
+
+            AddDistanceIfValid(result, end);
+
+            SortAndCleanDistances(result);
+
+            return result;
+        }
+
+        private static bool TryGetOpeningForSegment(
+            float d0,
+            float d1,
+            IReadOnlyList<WallOpeningData> openings,
+            out WallOpeningData result)
+        {
+            result = default;
+
+            if (openings == null || openings.Count == 0)
+                return false;
+
+            float mid = (d0 + d1) * 0.5f;
+
+            foreach (WallOpeningData opening in openings)
+            {
+                bool overlaps =
+                    d1 > opening.StartDistance &&
+                    d0 < opening.EndDistance;
+
+                bool midInside =
+                    mid >= opening.StartDistance &&
+                    mid <= opening.EndDistance;
+
+                if (overlaps || midInside)
+                {
+                    result = opening;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ShouldSkipTopFace(
+            float d0,
+            float d1,
+            float wallHeight,
+            IReadOnlyList<WallOpeningData> openings)
+        {
+            if (!TryGetOpeningForSegment(d0, d1, openings, out WallOpeningData opening))
+                return false;
+
+            float mid = (d0 + d1) * 0.5f;
+            float cutTop = GetOpeningCutTopAtDistance(opening, mid, wallHeight);
+
+            return cutTop >= wallHeight - Epsilon;
+        }
+
+        private static float GetOpeningSafeRadius(WallOpeningData opening)
+        {
+            if (!opening.RoundTopCorners)
+                return 0f;
+
+            return Mathf.Min(
+                opening.TopCornerRadius,
+                opening.Width * 0.5f,
+                opening.Height
+            );
+        }
+
+        private static float GetOpeningCutTopAtDistance(
+            WallOpeningData opening,
+            float distance,
+            float wallHeight)
+        {
+            float top = Mathf.Clamp(opening.TopHeight, 0f, wallHeight);
+            float radius = GetOpeningSafeRadius(opening);
+
+            if (radius <= Epsilon)
+                return top;
+
+            float start = opening.StartDistance;
+            float end = opening.EndDistance;
+
+            float leftCenterX = start + radius;
+            float rightCenterX = end - radius;
+            float arcCenterY = top - radius;
+
+            if (distance < leftCenterX)
+            {
+                float dx = distance - leftCenterX;
+                float y = arcCenterY + Mathf.Sqrt(Mathf.Max(0f, radius * radius - dx * dx));
+                return Mathf.Clamp(y, opening.BottomHeight, top);
+            }
+
+            if (distance > rightCenterX)
+            {
+                float dx = distance - rightCenterX;
+                float y = arcCenterY + Mathf.Sqrt(Mathf.Max(0f, radius * radius - dx * dx));
+                return Mathf.Clamp(y, opening.BottomHeight, top);
+            }
+
+            return top;
+        }
+
+        private static void AddVariableVerticalQuad(
             Vector3 bottomA,
             Vector3 bottomB,
-            float y0,
-            float y1,
+            float yBottomA,
+            float yBottomB,
+            float yTopA,
+            float yTopB,
             float d0,
             float d1,
             float textureScale,
@@ -567,17 +771,60 @@ namespace ProceduralEnvironment
             List<int> triangles,
             List<Vector2> uvs)
         {
-            Vector3 v0 = bottomB + Vector3.up * y0;
-            Vector3 v1 = bottomA + Vector3.up * y0;
-            Vector3 v2 = bottomA + Vector3.up * y1;
-            Vector3 v3 = bottomB + Vector3.up * y1;
+            if (yTopA <= yBottomA && yTopB <= yBottomB)
+                return;
+
+            Vector3 v0 = bottomA + Vector3.up * yBottomA;
+            Vector3 v1 = bottomB + Vector3.up * yBottomB;
+            Vector3 v2 = bottomB + Vector3.up * yTopB;
+            Vector3 v3 = bottomA + Vector3.up * yTopA;
 
             AddQuad(
-                v0, v1, v2, v3,
-                new Vector2(d1 / textureScale, y0 / textureScale),
-                new Vector2(d0 / textureScale, y0 / textureScale),
-                new Vector2(d0 / textureScale, y1 / textureScale),
-                new Vector2(d1 / textureScale, y1 / textureScale),
+                v0,
+                v1,
+                v2,
+                v3,
+                new Vector2(d0 / textureScale, yBottomA / textureScale),
+                new Vector2(d1 / textureScale, yBottomB / textureScale),
+                new Vector2(d1 / textureScale, yTopB / textureScale),
+                new Vector2(d0 / textureScale, yTopA / textureScale),
+                vertices,
+                triangles,
+                uvs
+            );
+        }
+
+        private static void AddVariableVerticalQuadFlipped(
+            Vector3 bottomA,
+            Vector3 bottomB,
+            float yBottomA,
+            float yBottomB,
+            float yTopA,
+            float yTopB,
+            float d0,
+            float d1,
+            float textureScale,
+            List<Vector3> vertices,
+            List<int> triangles,
+            List<Vector2> uvs)
+        {
+            if (yTopA <= yBottomA && yTopB <= yBottomB)
+                return;
+
+            Vector3 v0 = bottomB + Vector3.up * yBottomB;
+            Vector3 v1 = bottomA + Vector3.up * yBottomA;
+            Vector3 v2 = bottomA + Vector3.up * yTopA;
+            Vector3 v3 = bottomB + Vector3.up * yTopB;
+
+            AddQuad(
+                v0,
+                v1,
+                v2,
+                v3,
+                new Vector2(d1 / textureScale, yBottomB / textureScale),
+                new Vector2(d0 / textureScale, yBottomA / textureScale),
+                new Vector2(d0 / textureScale, yTopA / textureScale),
+                new Vector2(d1 / textureScale, yTopB / textureScale),
                 vertices,
                 triangles,
                 uvs
@@ -668,7 +915,7 @@ namespace ProceduralEnvironment
             ProceduralStroke stroke,
             Transform owner)
         {
-            List<Vector3> points = new();
+            List<Vector3> points = new List<Vector3>();
 
             if (stroke == null || owner == null)
                 return points;
@@ -679,7 +926,7 @@ namespace ProceduralEnvironment
 
                 if (points.Count > 0)
                 {
-                    if (Vector3.Distance(points[points.Count - 1], localPoint) <= 0.001f)
+                    if (Vector3.Distance(points[points.Count - 1], localPoint) <= Epsilon)
                         continue;
                 }
 
@@ -699,7 +946,7 @@ namespace ProceduralEnvironment
 
             segments = Mathf.Max(1, segments);
 
-            List<Vector3> roundedPoints = new();
+            List<Vector3> roundedPoints = new List<Vector3>();
 
             AddPointIfValid(roundedPoints, points[0]);
 
@@ -776,7 +1023,7 @@ namespace ProceduralEnvironment
         {
             if (points.Count > 0)
             {
-                if (Vector3.Distance(points[points.Count - 1], point) <= 0.001f)
+                if (Vector3.Distance(points[points.Count - 1], point) <= Epsilon)
                     return;
             }
 
@@ -785,7 +1032,7 @@ namespace ProceduralEnvironment
 
         private static List<float> CalculateDistances(List<Vector3> points)
         {
-            List<float> distances = new();
+            List<float> distances = new List<float>();
             float accumulatedDistance = 0f;
 
             distances.Add(0f);
@@ -824,7 +1071,7 @@ namespace ProceduralEnvironment
 
                 float segmentLength = endDistance - startDistance;
 
-                if (segmentLength <= 0.001f)
+                if (segmentLength <= Epsilon)
                     continue;
 
                 float t = (targetDistance - startDistance) / segmentLength;
@@ -841,6 +1088,97 @@ namespace ProceduralEnvironment
             tangent = (points[last] - points[last - 1]).normalized;
 
             return true;
+        }
+
+        private static void AddDistanceIfValid(List<float> distances, float value)
+        {
+            for (int i = 0; i < distances.Count; i++)
+            {
+                if (Mathf.Abs(distances[i] - value) < Epsilon)
+                    return;
+            }
+
+            distances.Add(value);
+        }
+
+        private static void SortAndCleanDistances(List<float> distances)
+        {
+            distances.Sort();
+
+            for (int i = distances.Count - 1; i > 0; i--)
+            {
+                if (Mathf.Abs(distances[i] - distances[i - 1]) < Epsilon)
+                    distances.RemoveAt(i);
+            }
+        }
+
+        private static void AddQuadFacingNormal(
+            Vector3 v0,
+            Vector3 v1,
+            Vector3 v2,
+            Vector3 v3,
+            Vector2 uv0,
+            Vector2 uv1,
+            Vector2 uv2,
+            Vector2 uv3,
+            Vector3 desiredNormal,
+            List<Vector3> vertices,
+            List<int> triangles,
+            List<Vector2> uvs)
+        {
+            if (desiredNormal.sqrMagnitude <= Epsilon)
+            {
+                AddQuad(
+                    v0,
+                    v1,
+                    v2,
+                    v3,
+                    uv0,
+                    uv1,
+                    uv2,
+                    uv3,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+
+                return;
+            }
+
+            Vector3 currentNormal = Vector3.Cross(v1 - v0, v2 - v0).normalized;
+
+            if (Vector3.Dot(currentNormal, desiredNormal.normalized) < 0f)
+            {
+                AddQuad(
+                    v3,
+                    v2,
+                    v1,
+                    v0,
+                    uv3,
+                    uv2,
+                    uv1,
+                    uv0,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+            }
+            else
+            {
+                AddQuad(
+                    v0,
+                    v1,
+                    v2,
+                    v3,
+                    uv0,
+                    uv1,
+                    uv2,
+                    uv3,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+            }
         }
 
         private static void AddQuad(
