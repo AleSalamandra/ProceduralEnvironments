@@ -63,11 +63,14 @@
   <ItemGroup>
     <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\ProceduralWall.cs" />
     <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Data\WallOpeningData.cs" />
+    <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\ProceduralBuilding.cs" />
+    <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\ProceduralBuildingFeatures\ProceduralBuildingFeature.cs" />
     <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Generators\WallMeshGenerator.cs" />
     <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\ProceduralElement.cs" />
     <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\ProceduralStroke.cs" />
     <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\ProceduralWallFeatures\WallCornersFeature.cs" />
     <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\ProceduralWallFeatures\ProceduralWallFeature.cs" />
+    <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\ProceduralBuildingFeatures\BuildingWallsFeature.cs" />
     <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\ProceduralWallFeatures\WallBricksFeature.cs" />
     <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\WallOpeningMarker.cs" />
     <Compile Include="Assets\_Project\ProceduralEnvironment\Runtime\Components\ProceduralWorld.cs" />

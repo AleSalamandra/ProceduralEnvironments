@@ -7,6 +7,15 @@ namespace ProceduralEnvironment
     {
         private const float Epsilon = 0.001f;
 
+        private struct WallFrame
+        {
+            public float Distance;
+            public Vector3 Center;
+            public Vector3 Tangent;
+            public Vector3 Left;
+            public Vector3 Right;
+        }
+
         public static Mesh Generate(
             ProceduralStroke stroke,
             Transform owner,
@@ -16,6 +25,7 @@ namespace ProceduralEnvironment
             bool roundCorners = false,
             float cornerRadius = 0.5f,
             int cornerSegments = 5,
+            bool closedLoop = false,
             IReadOnlyList<WallOpeningData> openings = null)
         {
             Mesh mesh = new Mesh();
@@ -28,7 +38,8 @@ namespace ProceduralEnvironment
                 owner,
                 roundCorners,
                 cornerRadius,
-                cornerSegments
+                cornerSegments,
+                closedLoop
             );
 
             if (sourcePoints == null || sourcePoints.Count < 2)
@@ -37,55 +48,43 @@ namespace ProceduralEnvironment
             List<float> pathDistances = CalculateDistances(sourcePoints);
             List<float> stationDistances = BuildStationDistances(pathDistances, openings);
 
-            List<Vector3> stationPoints = new List<Vector3>();
-            List<Vector3> stationTangents = new List<Vector3>();
+            float halfThickness = thickness * 0.5f;
+
+            List<WallFrame> frames = new List<WallFrame>();
 
             for (int i = 0; i < stationDistances.Count; i++)
             {
-                SamplePath(
+                if (SampleWallFrame(
                     sourcePoints,
                     pathDistances,
                     stationDistances[i],
-                    out Vector3 position,
-                    out Vector3 tangent
-                );
-
-                stationPoints.Add(position);
-                stationTangents.Add(tangent);
+                    halfThickness,
+                    closedLoop,
+                    out WallFrame frame))
+                {
+                    frames.Add(frame);
+                }
             }
+
+            if (frames.Count < 2)
+                return mesh;
 
             List<Vector3> vertices = new List<Vector3>();
             List<int> triangles = new List<int>();
             List<Vector2> uvs = new List<Vector2>();
 
-            float halfThickness = thickness * 0.5f;
-
-            for (int i = 0; i < stationPoints.Count - 1; i++)
+            for (int i = 0; i < frames.Count - 1; i++)
             {
-                float d0 = stationDistances[i];
-                float d1 = stationDistances[i + 1];
-
-                Vector3 p0 = stationPoints[i];
-                Vector3 p1 = stationPoints[i + 1];
-
-                Vector3 tangent0 = stationTangents[i];
-                Vector3 tangent1 = stationTangents[i + 1];
-
-                Vector3 normal0 = Vector3.Cross(Vector3.up, tangent0).normalized;
-                Vector3 normal1 = Vector3.Cross(Vector3.up, tangent1).normalized;
-
-                Vector3 left0 = p0 - normal0 * halfThickness;
-                Vector3 right0 = p0 + normal0 * halfThickness;
-                Vector3 left1 = p1 - normal1 * halfThickness;
-                Vector3 right1 = p1 + normal1 * halfThickness;
+                WallFrame frame0 = frames[i];
+                WallFrame frame1 = frames[i + 1];
 
                 AddWallFacesForStationSegment(
-                    left0,
-                    right0,
-                    left1,
-                    right1,
-                    d0,
-                    d1,
+                    frame0.Left,
+                    frame0.Right,
+                    frame1.Left,
+                    frame1.Right,
+                    frame0.Distance,
+                    frame1.Distance,
                     height,
                     openings,
                     textureScale,
@@ -94,16 +93,16 @@ namespace ProceduralEnvironment
                     uvs
                 );
 
-                if (!ShouldSkipTopFace(d0, d1, height, openings))
+                if (!ShouldSkipTopFace(frame0.Distance, frame1.Distance, height, openings))
                 {
                     AddTopQuad(
-                        left0,
-                        right0,
-                        left1,
-                        right1,
+                        frame0.Left,
+                        frame0.Right,
+                        frame1.Left,
+                        frame1.Right,
                         height,
-                        d0,
-                        d1,
+                        frame0.Distance,
+                        frame1.Distance,
                         textureScale,
                         vertices,
                         triangles,
@@ -120,36 +119,34 @@ namespace ProceduralEnvironment
                 halfThickness,
                 height,
                 textureScale,
+                closedLoop,
                 vertices,
                 triangles,
                 uvs
             );
 
-            AddEndCap(
-                stationPoints[0],
-                stationTangents[0],
-                halfThickness,
-                height,
-                textureScale,
-                vertices,
-                triangles,
-                uvs,
-                true
-            );
+            if (!closedLoop)
+            {
+                AddEndCap(
+                    frames[0],
+                    height,
+                    textureScale,
+                    vertices,
+                    triangles,
+                    uvs,
+                    true
+                );
 
-            int lastIndex = stationPoints.Count - 1;
-
-            AddEndCap(
-                stationPoints[lastIndex],
-                stationTangents[lastIndex],
-                halfThickness,
-                height,
-                textureScale,
-                vertices,
-                triangles,
-                uvs,
-                false
-            );
+                AddEndCap(
+                    frames[frames.Count - 1],
+                    height,
+                    textureScale,
+                    vertices,
+                    triangles,
+                    uvs,
+                    false
+                );
+            }
 
             mesh.SetVertices(vertices);
             mesh.SetTriangles(triangles, 0);
@@ -166,23 +163,24 @@ namespace ProceduralEnvironment
             Transform owner,
             bool roundCorners,
             float cornerRadius,
-            int cornerSegments)
+            int cornerSegments,
+            bool closedLoop = false)
         {
             List<Vector3> sourcePoints = GetLocalPoints(stroke, owner);
 
             if (sourcePoints.Count < 2)
                 return sourcePoints;
 
-            if (roundCorners)
-            {
-                sourcePoints = BuildRoundedPath(
-                    sourcePoints,
-                    cornerRadius,
-                    cornerSegments
-                );
-            }
+            if (closedLoop)
+                sourcePoints = EnsureClosedPath(sourcePoints);
 
-            return sourcePoints;
+            if (!roundCorners)
+                return sourcePoints;
+
+            if (closedLoop)
+                return BuildRoundedClosedPath(sourcePoints, cornerRadius, cornerSegments);
+
+            return BuildRoundedOpenPath(sourcePoints, cornerRadius, cornerSegments);
         }
 
         private static List<float> BuildStationDistances(
@@ -207,9 +205,7 @@ namespace ProceduralEnvironment
                     AddDistanceIfValid(stations, end);
 
                     if (opening.RoundTopCorners && GetOpeningSafeRadius(opening) > Epsilon)
-                    {
                         AddRoundedOpeningStations(stations, opening, totalLength);
-                    }
                 }
             }
 
@@ -376,6 +372,7 @@ namespace ProceduralEnvironment
             float halfThickness,
             float wallHeight,
             float textureScale,
+            bool closedLoop,
             List<Vector3> vertices,
             List<int> triangles,
             List<Vector2> uvs)
@@ -407,6 +404,7 @@ namespace ProceduralEnvironment
                     sideTop,
                     halfThickness,
                     textureScale,
+                    closedLoop,
                     true,
                     vertices,
                     triangles,
@@ -421,6 +419,7 @@ namespace ProceduralEnvironment
                     sideTop,
                     halfThickness,
                     textureScale,
+                    closedLoop,
                     false,
                     vertices,
                     triangles,
@@ -441,6 +440,7 @@ namespace ProceduralEnvironment
                         halfThickness,
                         wallHeight,
                         textureScale,
+                        closedLoop,
                         vertices,
                         triangles,
                         uvs
@@ -461,6 +461,7 @@ namespace ProceduralEnvironment
                         halfThickness,
                         wallHeight,
                         textureScale,
+                        closedLoop,
                         vertices,
                         triangles,
                         uvs
@@ -477,6 +478,7 @@ namespace ProceduralEnvironment
             float top,
             float halfThickness,
             float textureScale,
+            bool closedLoop,
             bool isStartSide,
             List<Vector3> vertices,
             List<int> triangles,
@@ -485,15 +487,16 @@ namespace ProceduralEnvironment
             if (top <= bottom + Epsilon)
                 return;
 
-            SamplePath(
+            SampleWallFrame(
                 pathPoints,
                 pathDistances,
                 distance,
-                out _,
-                out Vector3 tangent
+                halfThickness,
+                closedLoop,
+                out WallFrame frame
             );
 
-            Vector3 desiredNormal = isStartSide ? tangent : -tangent;
+            Vector3 desiredNormal = isStartSide ? frame.Tangent : -frame.Tangent;
 
             Vector2 pointA = new Vector2(distance, bottom);
             Vector2 pointB = new Vector2(distance, top);
@@ -506,6 +509,7 @@ namespace ProceduralEnvironment
                 halfThickness,
                 textureScale,
                 desiredNormal,
+                closedLoop,
                 vertices,
                 triangles,
                 uvs
@@ -524,6 +528,7 @@ namespace ProceduralEnvironment
             float halfThickness,
             float wallHeight,
             float textureScale,
+            bool closedLoop,
             List<Vector3> vertices,
             List<int> triangles,
             List<Vector2> uvs)
@@ -563,6 +568,7 @@ namespace ProceduralEnvironment
                     halfThickness,
                     textureScale,
                     desiredNormal,
+                    closedLoop,
                     vertices,
                     triangles,
                     uvs
@@ -578,46 +584,40 @@ namespace ProceduralEnvironment
             float halfThickness,
             float textureScale,
             Vector3 desiredNormal,
+            bool closedLoop,
             List<Vector3> vertices,
             List<int> triangles,
             List<Vector2> uvs)
         {
-            float distanceA = pointA.x;
-            float heightA = pointA.y;
-
-            float distanceB = pointB.x;
-            float heightB = pointB.y;
-
-            if (Mathf.Abs(distanceA - distanceB) < Epsilon &&
-                Mathf.Abs(heightA - heightB) < Epsilon)
+            if (Mathf.Abs(pointA.x - pointB.x) < Epsilon &&
+                Mathf.Abs(pointA.y - pointB.y) < Epsilon)
             {
                 return;
             }
 
-            SamplePath(
+            SampleWallFrame(
                 pathPoints,
                 pathDistances,
-                distanceA,
-                out Vector3 centerA,
-                out Vector3 tangentA
+                pointA.x,
+                halfThickness,
+                closedLoop,
+                out WallFrame frameA
             );
 
-            SamplePath(
+            SampleWallFrame(
                 pathPoints,
                 pathDistances,
-                distanceB,
-                out Vector3 centerB,
-                out Vector3 tangentB
+                pointB.x,
+                halfThickness,
+                closedLoop,
+                out WallFrame frameB
             );
 
-            Vector3 normalA = Vector3.Cross(Vector3.up, tangentA).normalized;
-            Vector3 normalB = Vector3.Cross(Vector3.up, tangentB).normalized;
+            Vector3 leftA = frameA.Left + Vector3.up * pointA.y;
+            Vector3 rightA = frameA.Right + Vector3.up * pointA.y;
 
-            Vector3 leftA = centerA - normalA * halfThickness + Vector3.up * heightA;
-            Vector3 rightA = centerA + normalA * halfThickness + Vector3.up * heightA;
-
-            Vector3 leftB = centerB - normalB * halfThickness + Vector3.up * heightB;
-            Vector3 rightB = centerB + normalB * halfThickness + Vector3.up * heightB;
+            Vector3 leftB = frameB.Left + Vector3.up * pointB.y;
+            Vector3 rightB = frameB.Right + Vector3.up * pointB.y;
 
             float bridgeLength = Vector2.Distance(pointA, pointB) / textureScale;
             float bridgeDepth = (halfThickness * 2f) / textureScale;
@@ -636,30 +636,6 @@ namespace ProceduralEnvironment
                 triangles,
                 uvs
             );
-        }
-
-        private static List<float> GetDistancesBetween(
-            List<float> allDistances,
-            float start,
-            float end)
-        {
-            List<float> result = new List<float>();
-
-            AddDistanceIfValid(result, start);
-
-            for (int i = 0; i < allDistances.Count; i++)
-            {
-                float distance = allDistances[i];
-
-                if (distance > start + Epsilon && distance < end - Epsilon)
-                    AddDistanceIfValid(result, distance);
-            }
-
-            AddDistanceIfValid(result, end);
-
-            SortAndCleanDistances(result);
-
-            return result;
         }
 
         private static bool TryGetOpeningForSegment(
@@ -860,9 +836,7 @@ namespace ProceduralEnvironment
         }
 
         private static void AddEndCap(
-            Vector3 center,
-            Vector3 tangent,
-            float halfThickness,
+            WallFrame frame,
             float height,
             float textureScale,
             List<Vector3> vertices,
@@ -870,10 +844,9 @@ namespace ProceduralEnvironment
             List<Vector2> uvs,
             bool startCap)
         {
-            Vector3 normal = Vector3.Cross(Vector3.up, tangent).normalized;
+            Vector3 leftBottom = frame.Left;
+            Vector3 rightBottom = frame.Right;
 
-            Vector3 leftBottom = center - normal * halfThickness;
-            Vector3 rightBottom = center + normal * halfThickness;
             Vector3 leftTop = leftBottom + Vector3.up * height;
             Vector3 rightTop = rightBottom + Vector3.up * height;
 
@@ -911,6 +884,244 @@ namespace ProceduralEnvironment
             }
         }
 
+        private static bool SampleWallFrame(
+            List<Vector3> points,
+            List<float> distances,
+            float targetDistance,
+            float halfThickness,
+            bool closedLoop,
+            out WallFrame frame)
+        {
+            frame = new WallFrame();
+
+            if (!SamplePath(
+                points,
+                distances,
+                targetDistance,
+                out Vector3 center,
+                out Vector3 tangent))
+            {
+                return false;
+            }
+
+            frame.Distance = targetDistance;
+            frame.Center = center;
+            frame.Tangent = tangent;
+
+            if (TryGetCornerIndex(
+                distances,
+                targetDistance,
+                closedLoop,
+                out int cornerIndex))
+            {
+                if (TryBuildCornerFrame(
+                    points,
+                    cornerIndex,
+                    halfThickness,
+                    closedLoop,
+                    out Vector3 left,
+                    out Vector3 right,
+                    out Vector3 cornerTangent))
+                {
+                    frame.Left = left;
+                    frame.Right = right;
+                    frame.Tangent = cornerTangent;
+                    return true;
+                }
+            }
+
+            Vector3 normal = Vector3.Cross(Vector3.up, tangent).normalized;
+
+            frame.Left = center - normal * halfThickness;
+            frame.Right = center + normal * halfThickness;
+
+            return true;
+        }
+
+        private static bool TryGetCornerIndex(
+            List<float> distances,
+            float targetDistance,
+            bool closedLoop,
+            out int cornerIndex)
+        {
+            cornerIndex = -1;
+
+            if (distances == null || distances.Count == 0)
+                return false;
+
+            float totalLength = distances[distances.Count - 1];
+
+            if (closedLoop)
+            {
+                if (Mathf.Abs(targetDistance) <= Epsilon ||
+                    Mathf.Abs(targetDistance - totalLength) <= Epsilon)
+                {
+                    cornerIndex = 0;
+                    return true;
+                }
+            }
+
+            for (int i = 0; i < distances.Count; i++)
+            {
+                if (Mathf.Abs(distances[i] - targetDistance) <= Epsilon)
+                {
+                    cornerIndex = i;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryBuildCornerFrame(
+            List<Vector3> points,
+            int cornerIndex,
+            float halfThickness,
+            bool closedLoop,
+            out Vector3 left,
+            out Vector3 right,
+            out Vector3 cornerTangent)
+        {
+            left = Vector3.zero;
+            right = Vector3.zero;
+            cornerTangent = Vector3.forward;
+
+            if (points == null || points.Count < 2)
+                return false;
+
+            int pointCount = points.Count;
+
+            if (closedLoop)
+                pointCount -= 1;
+
+            if (pointCount < 3)
+                return false;
+
+            int currentIndex = cornerIndex;
+
+            if (closedLoop && currentIndex >= pointCount)
+                currentIndex = 0;
+
+            bool isOpenEndpoint =
+                !closedLoop &&
+                (currentIndex <= 0 || currentIndex >= points.Count - 1);
+
+            if (isOpenEndpoint)
+                return false;
+
+            int previousIndex = closedLoop
+                ? (currentIndex - 1 + pointCount) % pointCount
+                : currentIndex - 1;
+
+            int nextIndex = closedLoop
+                ? (currentIndex + 1) % pointCount
+                : currentIndex + 1;
+
+            Vector3 previous = points[previousIndex];
+            Vector3 current = points[currentIndex];
+            Vector3 next = points[nextIndex];
+
+            Vector3 incoming = (current - previous).normalized;
+            Vector3 outgoing = (next - current).normalized;
+
+            if (incoming.sqrMagnitude <= Epsilon || outgoing.sqrMagnitude <= Epsilon)
+                return false;
+
+            cornerTangent = (incoming + outgoing).normalized;
+
+            if (cornerTangent.sqrMagnitude <= Epsilon)
+                cornerTangent = outgoing;
+
+            left = BuildOffsetIntersection(
+                previous,
+                current,
+                next,
+                halfThickness,
+                -1f
+            );
+
+            right = BuildOffsetIntersection(
+                previous,
+                current,
+                next,
+                halfThickness,
+                1f
+            );
+
+            return true;
+        }
+
+        private static Vector3 BuildOffsetIntersection(
+            Vector3 previous,
+            Vector3 current,
+            Vector3 next,
+            float halfThickness,
+            float sideSign)
+        {
+            Vector3 incoming = (current - previous).normalized;
+            Vector3 outgoing = (next - current).normalized;
+
+            Vector3 normalIncoming = Vector3.Cross(Vector3.up, incoming).normalized;
+            Vector3 normalOutgoing = Vector3.Cross(Vector3.up, outgoing).normalized;
+
+            Vector3 linePointA = current + normalIncoming * halfThickness * sideSign;
+            Vector3 linePointB = current + normalOutgoing * halfThickness * sideSign;
+
+            if (TryLineIntersectionXZ(
+                linePointA,
+                incoming,
+                linePointB,
+                outgoing,
+                out Vector3 intersection))
+            {
+                float maxMiterDistance = Mathf.Max(halfThickness * 8f, halfThickness + 0.01f);
+
+                if (Vector3.Distance(current, intersection) <= maxMiterDistance)
+                    return intersection;
+            }
+
+            Vector3 fallbackNormal = normalIncoming + normalOutgoing;
+
+            if (fallbackNormal.sqrMagnitude <= Epsilon)
+                fallbackNormal = normalOutgoing;
+
+            return current + fallbackNormal.normalized * halfThickness * sideSign;
+        }
+
+        private static bool TryLineIntersectionXZ(
+            Vector3 pointA,
+            Vector3 directionA,
+            Vector3 pointB,
+            Vector3 directionB,
+            out Vector3 intersection)
+        {
+            intersection = Vector3.zero;
+
+            Vector2 p = new Vector2(pointA.x, pointA.z);
+            Vector2 r = new Vector2(directionA.x, directionA.z);
+
+            Vector2 q = new Vector2(pointB.x, pointB.z);
+            Vector2 s = new Vector2(directionB.x, directionB.z);
+
+            float denominator = Cross2D(r, s);
+
+            if (Mathf.Abs(denominator) <= Epsilon)
+                return false;
+
+            Vector2 qMinusP = q - p;
+            float t = Cross2D(qMinusP, s) / denominator;
+
+            Vector2 result = p + r * t;
+
+            intersection = new Vector3(result.x, pointA.y, result.y);
+            return true;
+        }
+
+        private static float Cross2D(Vector2 a, Vector2 b)
+        {
+            return a.x * b.y - a.y * b.x;
+        }
+
         private static List<Vector3> GetLocalPoints(
             ProceduralStroke stroke,
             Transform owner)
@@ -936,7 +1147,35 @@ namespace ProceduralEnvironment
             return points;
         }
 
-        private static List<Vector3> BuildRoundedPath(
+        private static List<Vector3> EnsureClosedPath(List<Vector3> points)
+        {
+            if (points == null || points.Count < 2)
+                return points;
+
+            List<Vector3> closedPoints = new List<Vector3>(points);
+
+            if (Vector3.Distance(closedPoints[0], closedPoints[closedPoints.Count - 1]) > Epsilon)
+                closedPoints.Add(closedPoints[0]);
+
+            return closedPoints;
+        }
+
+        private static List<Vector3> RemoveClosingDuplicate(List<Vector3> points)
+        {
+            List<Vector3> result = new List<Vector3>(points);
+
+            if (result.Count > 1)
+            {
+                int last = result.Count - 1;
+
+                if (Vector3.Distance(result[0], result[last]) <= Epsilon)
+                    result.RemoveAt(last);
+            }
+
+            return result;
+        }
+
+        private static List<Vector3> BuildRoundedOpenPath(
             List<Vector3> points,
             float radius,
             int segments)
@@ -952,55 +1191,104 @@ namespace ProceduralEnvironment
 
             for (int i = 1; i < points.Count - 1; i++)
             {
-                Vector3 previous = points[i - 1];
-                Vector3 current = points[i];
-                Vector3 next = points[i + 1];
-
-                Vector3 incoming = (current - previous).normalized;
-                Vector3 outgoing = (next - current).normalized;
-
-                float dot = Vector3.Dot(incoming, outgoing);
-
-                if (dot > 0.999f || dot < -0.999f)
-                {
-                    AddPointIfValid(roundedPoints, current);
-                    continue;
-                }
-
-                float previousLength = Vector3.Distance(previous, current);
-                float nextLength = Vector3.Distance(current, next);
-
-                float safeRadius = Mathf.Min(
+                AddRoundedCornerPoints(
+                    roundedPoints,
+                    points[i - 1],
+                    points[i],
+                    points[i + 1],
                     radius,
-                    previousLength * 0.49f,
-                    nextLength * 0.49f
+                    segments
                 );
-
-                Vector3 curveStart = current - incoming * safeRadius;
-                Vector3 curveEnd = current + outgoing * safeRadius;
-
-                AddPointIfValid(roundedPoints, curveStart);
-
-                for (int j = 1; j < segments; j++)
-                {
-                    float t = j / (float)segments;
-
-                    Vector3 curvePoint = QuadraticBezier(
-                        curveStart,
-                        current,
-                        curveEnd,
-                        t
-                    );
-
-                    AddPointIfValid(roundedPoints, curvePoint);
-                }
-
-                AddPointIfValid(roundedPoints, curveEnd);
             }
 
             AddPointIfValid(roundedPoints, points[points.Count - 1]);
 
             return roundedPoints;
+        }
+
+        private static List<Vector3> BuildRoundedClosedPath(
+            List<Vector3> points,
+            float radius,
+            int segments)
+        {
+            List<Vector3> uniquePoints = RemoveClosingDuplicate(points);
+
+            if (uniquePoints.Count < 3 || radius <= 0f)
+                return EnsureClosedPath(uniquePoints);
+
+            segments = Mathf.Max(1, segments);
+
+            List<Vector3> roundedPoints = new List<Vector3>();
+
+            int count = uniquePoints.Count;
+
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 previous = uniquePoints[(i - 1 + count) % count];
+                Vector3 current = uniquePoints[i];
+                Vector3 next = uniquePoints[(i + 1) % count];
+
+                AddRoundedCornerPoints(
+                    roundedPoints,
+                    previous,
+                    current,
+                    next,
+                    radius,
+                    segments
+                );
+            }
+
+            return EnsureClosedPath(roundedPoints);
+        }
+
+        private static void AddRoundedCornerPoints(
+            List<Vector3> output,
+            Vector3 previous,
+            Vector3 current,
+            Vector3 next,
+            float radius,
+            int segments)
+        {
+            Vector3 incoming = (current - previous).normalized;
+            Vector3 outgoing = (next - current).normalized;
+
+            float dot = Vector3.Dot(incoming, outgoing);
+
+            if (dot > 0.999f || dot < -0.999f)
+            {
+                AddPointIfValid(output, current);
+                return;
+            }
+
+            float previousLength = Vector3.Distance(previous, current);
+            float nextLength = Vector3.Distance(current, next);
+
+            float safeRadius = Mathf.Min(
+                radius,
+                previousLength * 0.49f,
+                nextLength * 0.49f
+            );
+
+            Vector3 curveStart = current - incoming * safeRadius;
+            Vector3 curveEnd = current + outgoing * safeRadius;
+
+            AddPointIfValid(output, curveStart);
+
+            for (int i = 1; i < segments; i++)
+            {
+                float t = i / (float)segments;
+
+                Vector3 curvePoint = QuadraticBezier(
+                    curveStart,
+                    current,
+                    curveEnd,
+                    t
+                );
+
+                AddPointIfValid(output, curvePoint);
+            }
+
+            AddPointIfValid(output, curveEnd);
         }
 
         private static Vector3 QuadraticBezier(
@@ -1088,6 +1376,30 @@ namespace ProceduralEnvironment
             tangent = (points[last] - points[last - 1]).normalized;
 
             return true;
+        }
+
+        private static List<float> GetDistancesBetween(
+            List<float> allDistances,
+            float start,
+            float end)
+        {
+            List<float> result = new List<float>();
+
+            AddDistanceIfValid(result, start);
+
+            for (int i = 0; i < allDistances.Count; i++)
+            {
+                float distance = allDistances[i];
+
+                if (distance > start + Epsilon && distance < end - Epsilon)
+                    AddDistanceIfValid(result, distance);
+            }
+
+            AddDistanceIfValid(result, end);
+
+            SortAndCleanDistances(result);
+
+            return result;
         }
 
         private static void AddDistanceIfValid(List<float> distances, float value)
