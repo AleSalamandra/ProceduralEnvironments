@@ -540,5 +540,14 @@ namespace ProceduralEnvironment
             for (int i = 0; i < openings.Count; i++)
                 Gizmos.DrawSphere(openings[i].WorldPosition, 0.08f);
         }
+
+        public void SetCornerSettings(bool useRoundCorners, float newCornerRadius, int newCornerSegments)
+        {
+            roundCorners = useRoundCorners;
+            cornerRadius = Mathf.Max(0f, newCornerRadius);
+            cornerSegments = Mathf.Clamp(newCornerSegments, 1, 32);
+
+            RequestRegenerate();
+        }
     }
 }

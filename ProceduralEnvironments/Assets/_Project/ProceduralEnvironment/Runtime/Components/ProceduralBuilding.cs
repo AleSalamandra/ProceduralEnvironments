@@ -11,8 +11,7 @@ namespace ProceduralEnvironment
     {
         Rectangle,
         Circle,
-        Hexagon,
-        Cross
+        Hexagon
     }
 
     [DisallowMultipleComponent]
@@ -24,12 +23,13 @@ namespace ProceduralEnvironment
         [SerializeField] private float width = 6f;
         [SerializeField] private float depth = 4f;
 
-        [Header("Circle / Polygon")]
+        [Header("Circle")]
         [SerializeField] private int circleSegments = 24;
 
-        [Header("Cross")]
-        [SerializeField] private float crossCenterWidth = 2f;
-        [SerializeField] private float crossCenterDepth = 2f;
+        [Header("Rounded Corners")]
+        [SerializeField] private bool roundCorners = false;
+        [SerializeField] private float cornerRadius = 0.5f;
+        [SerializeField] private int cornerSegments = 5;
 
         [Header("Wall")]
         [SerializeField] private ProceduralWall wallPrefab;
@@ -47,7 +47,7 @@ namespace ProceduralEnvironment
         [Header("Features")]
         [SerializeField] private bool regenerateFeatures = true;
         [SerializeField] private bool autoCollectFeatures = true;
-        [SerializeField] private List<ProceduralBuildingFeature> buildingFeatures = new();
+        [SerializeField] private List<ProceduralBuildingFeature> buildingFeatures = new List<ProceduralBuildingFeature>();
 
 #if UNITY_EDITOR
         private bool regenerateQueued;
@@ -60,6 +60,10 @@ namespace ProceduralEnvironment
         public float WallHeight => wallHeight;
         public float WallThickness => wallThickness;
         public float WallTextureScale => wallTextureScale;
+
+        public bool SupportsRoundedCorners =>
+            footprintType == BuildingFootprintType.Rectangle ||
+            footprintType == BuildingFootprintType.Hexagon;
 
         private void Reset()
         {
@@ -84,10 +88,10 @@ namespace ProceduralEnvironment
             width = Mathf.Max(0.01f, width);
             depth = Mathf.Max(0.01f, depth);
 
-            circleSegments = Mathf.Clamp(circleSegments, 6, 128);
+            circleSegments = Mathf.Clamp(circleSegments, 8, 128);
 
-            crossCenterWidth = Mathf.Clamp(crossCenterWidth, 0.01f, width);
-            crossCenterDepth = Mathf.Clamp(crossCenterDepth, 0.01f, depth);
+            cornerRadius = Mathf.Max(0f, cornerRadius);
+            cornerSegments = Mathf.Clamp(cornerSegments, 1, 32);
 
             wallHeight = Mathf.Max(0.01f, wallHeight);
             wallThickness = Mathf.Max(0.01f, wallThickness);
@@ -185,7 +189,7 @@ namespace ProceduralEnvironment
         public List<Vector3> GetFootprintWorldPoints(bool closed)
         {
             List<Vector3> localPoints = BuildLocalFootprintPoints();
-            List<Vector3> worldPoints = new();
+            List<Vector3> worldPoints = new List<Vector3>();
 
             for (int i = 0; i < localPoints.Count; i++)
                 worldPoints.Add(transform.TransformPoint(localPoints[i]));
@@ -222,6 +226,11 @@ namespace ProceduralEnvironment
 
             List<Vector3> footprintPoints = GetFootprintWorldPoints(true);
 
+            bool useRoundedCorners =
+                SupportsRoundedCorners &&
+                roundCorners &&
+                cornerRadius > 0.001f;
+
             wall.name = generatedWallName;
             wall.transform.SetParent(root);
             wall.transform.localPosition = Vector3.zero;
@@ -231,6 +240,7 @@ namespace ProceduralEnvironment
             wall.SetClosedLoop(true);
             wall.SetStrokeWorldPoints(footprintPoints);
             wall.SetWallSettings(wallHeight, wallThickness, wallTextureScale);
+            wall.SetCornerSettings(useRoundedCorners, cornerRadius, cornerSegments);
             wall.ForceRegenerateWall();
         }
 
@@ -275,10 +285,7 @@ namespace ProceduralEnvironment
                     return BuildCircleFootprint();
 
                 case BuildingFootprintType.Hexagon:
-                    return BuildRegularPolygonFootprint(6);
-
-                case BuildingFootprintType.Cross:
-                    return BuildCrossFootprint();
+                    return BuildHexagonFootprint();
 
                 case BuildingFootprintType.Rectangle:
                 default:
@@ -305,9 +312,14 @@ namespace ProceduralEnvironment
             return BuildRegularPolygonFootprint(circleSegments);
         }
 
+        private List<Vector3> BuildHexagonFootprint()
+        {
+            return BuildRegularPolygonFootprint(6);
+        }
+
         private List<Vector3> BuildRegularPolygonFootprint(int segments)
         {
-            List<Vector3> points = new();
+            List<Vector3> points = new List<Vector3>();
 
             float radiusX = width * 0.5f;
             float radiusZ = depth * 0.5f;
@@ -315,7 +327,7 @@ namespace ProceduralEnvironment
             for (int i = 0; i < segments; i++)
             {
                 float t = i / (float)segments;
-                float angle = -t * Mathf.PI * 2f;
+                float angle = -t * Mathf.PI * 2f + Mathf.PI * 0.5f;
 
                 float x = Mathf.Cos(angle) * radiusX;
                 float z = Mathf.Sin(angle) * radiusZ;
@@ -324,32 +336,6 @@ namespace ProceduralEnvironment
             }
 
             return points;
-        }
-
-        private List<Vector3> BuildCrossFootprint()
-        {
-            float halfWidth = width * 0.5f;
-            float halfDepth = depth * 0.5f;
-
-            float halfCenterWidth = crossCenterWidth * 0.5f;
-            float halfCenterDepth = crossCenterDepth * 0.5f;
-
-            return new List<Vector3>
-            {
-                new Vector3(-halfCenterWidth, 0f, -halfDepth),
-                new Vector3(-halfCenterWidth, 0f, -halfCenterDepth),
-                new Vector3(-halfWidth,       0f, -halfCenterDepth),
-                new Vector3(-halfWidth,       0f,  halfCenterDepth),
-                new Vector3(-halfCenterWidth, 0f,  halfCenterDepth),
-                new Vector3(-halfCenterWidth, 0f,  halfDepth),
-
-                new Vector3( halfCenterWidth, 0f,  halfDepth),
-                new Vector3( halfCenterWidth, 0f,  halfCenterDepth),
-                new Vector3( halfWidth,       0f,  halfCenterDepth),
-                new Vector3( halfWidth,       0f, -halfCenterDepth),
-                new Vector3( halfCenterWidth, 0f, -halfCenterDepth),
-                new Vector3( halfCenterWidth, 0f, -halfDepth)
-            };
         }
 
         private void RegenerateAssignedFeatures()
@@ -417,8 +403,10 @@ namespace ProceduralEnvironment
                 hash = hash * 31 + Mathf.RoundToInt(width * 1000f);
                 hash = hash * 31 + Mathf.RoundToInt(depth * 1000f);
                 hash = hash * 31 + circleSegments;
-                hash = hash * 31 + Mathf.RoundToInt(crossCenterWidth * 1000f);
-                hash = hash * 31 + Mathf.RoundToInt(crossCenterDepth * 1000f);
+
+                hash = hash * 31 + roundCorners.GetHashCode();
+                hash = hash * 31 + Mathf.RoundToInt(cornerRadius * 1000f);
+                hash = hash * 31 + cornerSegments;
 
                 hash = hash * 31 + Mathf.RoundToInt(wallHeight * 1000f);
                 hash = hash * 31 + Mathf.RoundToInt(wallThickness * 1000f);
