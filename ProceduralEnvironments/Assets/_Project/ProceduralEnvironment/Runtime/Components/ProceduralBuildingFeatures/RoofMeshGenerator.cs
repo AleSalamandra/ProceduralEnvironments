@@ -50,7 +50,8 @@ namespace ProceduralEnvironment
                     break;
 
                 case BuildingFootprintType.Hexagon:
-                    BuildHexagonalRoof(
+                    BuildPyramidRoof(
+                        6,
                         width,
                         depth,
                         wallHeight,
@@ -104,7 +105,7 @@ namespace ProceduralEnvironment
             float halfDepth = depth * 0.5f + overhang;
 
             float baseY = wallHeight;
-            float ridgeY = wallHeight + roofHeight;
+            float topY = wallHeight + roofHeight;
 
             Vector3 roofCenter = new Vector3(0f, baseY, 0f);
 
@@ -113,7 +114,7 @@ namespace ProceduralEnvironment
             Vector3 southEast = new Vector3(halfWidth, baseY, -halfDepth);
             Vector3 southWest = new Vector3(-halfWidth, baseY, -halfDepth);
 
-            List<Vector3> outerRing = new List<Vector3>
+            List<Vector3> eaveRing = new List<Vector3>
             {
                 northWest,
                 northEast,
@@ -127,22 +128,22 @@ namespace ProceduralEnvironment
 
                 if (ridgeHalfLength <= Epsilon)
                 {
-                    Vector3 apex = new Vector3(0f, ridgeY, 0f);
+                    Vector3 apex = new Vector3(0f, topY, 0f);
 
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { northWest, northEast, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { northEast, southEast, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { southEast, southWest, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { southWest, northWest, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { northWest, northEast, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { northEast, southEast, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { southEast, southWest, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { southWest, northWest, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
                 }
                 else
                 {
-                    Vector3 ridgeLeft = new Vector3(-ridgeHalfLength, ridgeY, 0f);
-                    Vector3 ridgeRight = new Vector3(ridgeHalfLength, ridgeY, 0f);
+                    Vector3 ridgeLeft = new Vector3(-ridgeHalfLength, topY, 0f);
+                    Vector3 ridgeRight = new Vector3(ridgeHalfLength, topY, 0f);
 
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { northWest, northEast, ridgeRight, ridgeLeft }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { northEast, southEast, ridgeRight }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { southEast, southWest, ridgeLeft, ridgeRight }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { southWest, northWest, ridgeLeft }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { northWest, northEast, ridgeRight, ridgeLeft }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { northEast, southEast, ridgeRight }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { southEast, southWest, ridgeLeft, ridgeRight }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { southWest, northWest, ridgeLeft }, roofCenter, roofThickness, vertices, triangles, uvs);
                 }
             }
             else
@@ -151,27 +152,27 @@ namespace ProceduralEnvironment
 
                 if (ridgeHalfLength <= Epsilon)
                 {
-                    Vector3 apex = new Vector3(0f, ridgeY, 0f);
+                    Vector3 apex = new Vector3(0f, topY, 0f);
 
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { northWest, northEast, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { northEast, southEast, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { southEast, southWest, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { southWest, northWest, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { northWest, northEast, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { northEast, southEast, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { southEast, southWest, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { southWest, northWest, apex }, roofCenter, roofThickness, vertices, triangles, uvs);
                 }
                 else
                 {
-                    Vector3 ridgeBack = new Vector3(0f, ridgeY, -ridgeHalfLength);
-                    Vector3 ridgeFront = new Vector3(0f, ridgeY, ridgeHalfLength);
+                    Vector3 ridgeBack = new Vector3(0f, topY, -ridgeHalfLength);
+                    Vector3 ridgeFront = new Vector3(0f, topY, ridgeHalfLength);
 
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { northWest, northEast, ridgeFront }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { northEast, southEast, ridgeBack, ridgeFront }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { southEast, southWest, ridgeBack }, roofCenter, roofThickness, vertices, triangles, uvs);
-                    AddRoofFaceWithVerticalThickness(new List<Vector3> { southWest, northWest, ridgeFront, ridgeBack }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { northWest, northEast, ridgeFront }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { northEast, southEast, ridgeBack, ridgeFront }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { southEast, southWest, ridgeBack }, roofCenter, roofThickness, vertices, triangles, uvs);
+                    AddRoofSolidFace(new List<Vector3> { southWest, northWest, ridgeFront, ridgeBack }, roofCenter, roofThickness, vertices, triangles, uvs);
                 }
             }
 
-            AddOuterFascia(
-                outerRing,
+            AddFasciaRing(
+                eaveRing,
                 roofThickness,
                 vertices,
                 triangles,
@@ -179,7 +180,8 @@ namespace ProceduralEnvironment
             );
         }
 
-        private static void BuildHexagonalRoof(
+        private static void BuildPyramidRoof(
+            int sides,
             float width,
             float depth,
             float wallHeight,
@@ -190,8 +192,6 @@ namespace ProceduralEnvironment
             List<int> triangles,
             List<Vector2> uvs)
         {
-            int segments = 6;
-
             float radiusX = width * 0.5f + overhang;
             float radiusZ = depth * 0.5f + overhang;
 
@@ -201,14 +201,14 @@ namespace ProceduralEnvironment
             Vector3 roofCenter = new Vector3(0f, baseY, 0f);
             Vector3 apex = new Vector3(0f, apexY, 0f);
 
-            List<Vector3> ring = BuildRing(segments, radiusX, radiusZ, baseY);
+            List<Vector3> ring = BuildRing(sides, radiusX, radiusZ, baseY);
 
-            for (int i = 0; i < segments; i++)
+            for (int i = 0; i < sides; i++)
             {
                 Vector3 a = ring[i];
-                Vector3 b = ring[(i + 1) % segments];
+                Vector3 b = ring[(i + 1) % sides];
 
-                AddRoofFaceWithVerticalThickness(
+                AddRoofSolidFace(
                     new List<Vector3> { a, b, apex },
                     roofCenter,
                     roofThickness,
@@ -218,7 +218,7 @@ namespace ProceduralEnvironment
                 );
             }
 
-            AddOuterFascia(
+            AddFasciaRing(
                 ring,
                 roofThickness,
                 vertices,
@@ -251,20 +251,10 @@ namespace ProceduralEnvironment
             Vector3 bottomApex = topApex - Vector3.up * roofThickness;
 
             List<Vector3> topRing = BuildRing(segments, radiusX, radiusZ, baseY);
-            List<Vector3> bottomRing = new List<Vector3>();
-
-            for (int i = 0; i < topRing.Count; i++)
-                bottomRing.Add(topRing[i] - Vector3.up * roofThickness);
+            List<Vector3> bottomRing = OffsetDown(topRing, roofThickness);
 
             int topApexIndex = AddVertex(topApex, new Vector2(0.5f, 0.5f), vertices, uvs);
-
-            List<int> topRingIndices = new List<int>();
-
-            for (int i = 0; i < topRing.Count; i++)
-            {
-                Vector2 uv = CircularUv(topRing[i], radiusX, radiusZ);
-                topRingIndices.Add(AddVertex(topRing[i], uv, vertices, uvs));
-            }
+            List<int> topRingIndices = AddRingVerticesWithCircularUvs(topRing, radiusX, radiusZ, vertices, uvs);
 
             for (int i = 0; i < segments; i++)
             {
@@ -276,53 +266,106 @@ namespace ProceduralEnvironment
                     roofCenter
                 );
 
-                AddTriangleIndicesFacingNormal(
-                    a,
-                    b,
-                    topApexIndex,
-                    desiredNormal,
-                    vertices,
-                    triangles
-                );
+                AddTriangleIndicesFacingNormal(a, b, topApexIndex, desiredNormal, vertices, triangles);
             }
 
             int bottomApexIndex = AddVertex(bottomApex, new Vector2(0.5f, 0.5f), vertices, uvs);
-
-            List<int> bottomRingIndices = new List<int>();
-
-            for (int i = 0; i < bottomRing.Count; i++)
-            {
-                Vector2 uv = CircularUv(bottomRing[i], radiusX, radiusZ);
-                bottomRingIndices.Add(AddVertex(bottomRing[i], uv, vertices, uvs));
-            }
+            List<int> bottomRingIndices = AddRingVerticesWithCircularUvs(bottomRing, radiusX, radiusZ, vertices, uvs);
 
             for (int i = 0; i < segments; i++)
             {
                 int a = bottomRingIndices[i];
                 int b = bottomRingIndices[(i + 1) % segments];
 
+                Vector3 topA = topRing[i];
+                Vector3 topB = topRing[(i + 1) % segments];
+
                 Vector3 desiredNormal = -GetOutwardRoofNormal(
-                    new List<Vector3> { topRing[i], topRing[(i + 1) % segments], topApex },
+                    new List<Vector3> { topA, topB, topApex },
                     roofCenter
                 );
 
-                AddTriangleIndicesFacingNormal(
-                    bottomApexIndex,
-                    b,
-                    a,
-                    desiredNormal,
-                    vertices,
-                    triangles
-                );
+                AddTriangleIndicesFacingNormal(bottomApexIndex, b, a, desiredNormal, vertices, triangles);
             }
 
-            AddOuterFascia(
+            AddFasciaRing(
                 topRing,
                 roofThickness,
                 vertices,
                 triangles,
                 uvs
             );
+        }
+
+        private static void AddRoofSolidFace(
+            List<Vector3> topFace,
+            Vector3 roofCenter,
+            float roofThickness,
+            List<Vector3> vertices,
+            List<int> triangles,
+            List<Vector2> uvs)
+        {
+            if (topFace == null || topFace.Count < 3)
+                return;
+
+            Vector3 topNormal = GetOutwardRoofNormal(topFace, roofCenter);
+
+            AddPolygonFace(
+                topFace,
+                topNormal,
+                vertices,
+                triangles,
+                uvs
+            );
+
+            List<Vector3> bottomFace = OffsetDown(topFace, roofThickness);
+
+            AddPolygonFace(
+                bottomFace,
+                -topNormal,
+                vertices,
+                triangles,
+                uvs
+            );
+        }
+
+        private static void AddFasciaRing(
+            List<Vector3> topRing,
+            float roofThickness,
+            List<Vector3> vertices,
+            List<int> triangles,
+            List<Vector2> uvs)
+        {
+            if (topRing == null || topRing.Count < 3)
+                return;
+
+            int count = topRing.Count;
+
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 topA = topRing[i];
+                Vector3 topB = topRing[(i + 1) % count];
+
+                Vector3 bottomA = topA - Vector3.up * roofThickness;
+                Vector3 bottomB = topB - Vector3.up * roofThickness;
+
+                Vector3 mid = (topA + topB) * 0.5f;
+                Vector3 desiredNormal = new Vector3(mid.x, 0f, mid.z);
+
+                if (desiredNormal.sqrMagnitude <= Epsilon)
+                    desiredNormal = Vector3.forward;
+
+                AddQuadFace(
+                    topA,
+                    topB,
+                    bottomB,
+                    bottomA,
+                    desiredNormal.normalized,
+                    vertices,
+                    triangles,
+                    uvs
+                );
+            }
         }
 
         private static List<Vector3> BuildRing(
@@ -347,78 +390,16 @@ namespace ProceduralEnvironment
             return ring;
         }
 
-        private static void AddRoofFaceWithVerticalThickness(
-            List<Vector3> topFace,
-            Vector3 roofCenter,
-            float roofThickness,
-            List<Vector3> vertices,
-            List<int> triangles,
-            List<Vector2> uvs)
+        private static List<Vector3> OffsetDown(
+            List<Vector3> points,
+            float amount)
         {
-            if (topFace == null || topFace.Count < 3)
-                return;
+            List<Vector3> result = new List<Vector3>();
 
-            Vector3 desiredTopNormal = GetOutwardRoofNormal(topFace, roofCenter);
+            for (int i = 0; i < points.Count; i++)
+                result.Add(points[i] - Vector3.up * amount);
 
-            List<Vector3> orientedTop = GetOrientedPolygon(topFace, desiredTopNormal);
-
-            AddPolygonWithPlanarUvs(
-                orientedTop,
-                vertices,
-                triangles,
-                uvs
-            );
-
-            List<Vector3> bottomFace = new List<Vector3>();
-
-            for (int i = orientedTop.Count - 1; i >= 0; i--)
-                bottomFace.Add(orientedTop[i] - Vector3.up * roofThickness);
-
-            AddPolygonWithPlanarUvs(
-                bottomFace,
-                vertices,
-                triangles,
-                uvs
-            );
-        }
-
-        private static void AddOuterFascia(
-            List<Vector3> topRing,
-            float roofThickness,
-            List<Vector3> vertices,
-            List<int> triangles,
-            List<Vector2> uvs)
-        {
-            if (topRing == null || topRing.Count < 3)
-                return;
-
-            int count = topRing.Count;
-
-            for (int i = 0; i < count; i++)
-            {
-                Vector3 topA = topRing[i];
-                Vector3 topB = topRing[(i + 1) % count];
-
-                Vector3 bottomA = topA - Vector3.up * roofThickness;
-                Vector3 bottomB = topB - Vector3.up * roofThickness;
-
-                Vector3 mid = (topA + topB) * 0.5f;
-                Vector3 desiredNormal = new Vector3(mid.x, 0f, mid.z).normalized;
-
-                if (desiredNormal.sqrMagnitude <= Epsilon)
-                    desiredNormal = Vector3.forward;
-
-                AddQuadFacingNormal(
-                    topA,
-                    topB,
-                    bottomB,
-                    bottomA,
-                    desiredNormal,
-                    vertices,
-                    triangles,
-                    uvs
-                );
-            }
+            return result;
         }
 
         private static Vector3 GetOutwardRoofNormal(
@@ -433,27 +414,83 @@ namespace ProceduralEnvironment
             faceCenter /= face.Count;
 
             Vector3 desiredNormal = faceCenter - roofCenter;
+            desiredNormal.y = Mathf.Abs(desiredNormal.y) + 0.25f;
 
             if (desiredNormal.sqrMagnitude <= Epsilon)
-                desiredNormal = Vector3.up;
-
-            desiredNormal.y = Mathf.Abs(desiredNormal.y) + 0.1f;
+                return Vector3.up;
 
             return desiredNormal.normalized;
         }
 
-        private static List<Vector3> GetOrientedPolygon(
+        private static void AddPolygonFace(
             List<Vector3> polygon,
-            Vector3 desiredNormal)
+            Vector3 desiredNormal,
+            List<Vector3> vertices,
+            List<int> triangles,
+            List<Vector2> uvs)
         {
-            List<Vector3> result = new List<Vector3>(polygon);
+            if (polygon == null || polygon.Count < 3)
+                return;
 
-            Vector3 currentNormal = CalculatePolygonNormal(result);
+            List<Vector3> oriented = new List<Vector3>(polygon);
+            Vector3 currentNormal = CalculatePolygonNormal(oriented);
 
-            if (Vector3.Dot(currentNormal, desiredNormal) < 0f)
-                result.Reverse();
+            if (Vector3.Dot(currentNormal, desiredNormal.normalized) < 0f)
+                oriented.Reverse();
 
-            return result;
+            int startIndex = vertices.Count;
+
+            Vector3 normal = CalculatePolygonNormal(oriented);
+
+            Vector3 uAxis = (oriented[1] - oriented[0]).normalized;
+
+            if (uAxis.sqrMagnitude <= Epsilon)
+                uAxis = Vector3.right;
+
+            Vector3 vAxis = Vector3.Cross(normal, uAxis).normalized;
+
+            if (vAxis.sqrMagnitude <= Epsilon)
+                vAxis = Vector3.forward;
+
+            Vector3 origin = oriented[0];
+
+            for (int i = 0; i < oriented.Count; i++)
+            {
+                Vector3 point = oriented[i];
+                Vector3 delta = point - origin;
+
+                vertices.Add(point);
+                uvs.Add(new Vector2(
+                    Vector3.Dot(delta, uAxis),
+                    Vector3.Dot(delta, vAxis)
+                ));
+            }
+
+            for (int i = 1; i < oriented.Count - 1; i++)
+            {
+                triangles.Add(startIndex);
+                triangles.Add(startIndex + i);
+                triangles.Add(startIndex + i + 1);
+            }
+        }
+
+        private static void AddQuadFace(
+            Vector3 v0,
+            Vector3 v1,
+            Vector3 v2,
+            Vector3 v3,
+            Vector3 desiredNormal,
+            List<Vector3> vertices,
+            List<int> triangles,
+            List<Vector2> uvs)
+        {
+            AddPolygonFace(
+                new List<Vector3> { v0, v1, v2, v3 },
+                desiredNormal,
+                vertices,
+                triangles,
+                uvs
+            );
         }
 
         private static Vector3 CalculatePolygonNormal(List<Vector3> polygon)
@@ -476,121 +513,6 @@ namespace ProceduralEnvironment
             return Vector3.up;
         }
 
-        private static void AddPolygonWithPlanarUvs(
-            List<Vector3> polygon,
-            List<Vector3> vertices,
-            List<int> triangles,
-            List<Vector2> uvs)
-        {
-            if (polygon == null || polygon.Count < 3)
-                return;
-
-            int startIndex = vertices.Count;
-
-            Vector3 normal = CalculatePolygonNormal(polygon);
-            Vector3 uAxis = (polygon[1] - polygon[0]).normalized;
-
-            if (uAxis.sqrMagnitude <= Epsilon)
-                uAxis = Vector3.right;
-
-            Vector3 vAxis = Vector3.Cross(normal, uAxis).normalized;
-
-            if (vAxis.sqrMagnitude <= Epsilon)
-                vAxis = Vector3.forward;
-
-            Vector3 origin = polygon[0];
-
-            for (int i = 0; i < polygon.Count; i++)
-            {
-                Vector3 point = polygon[i];
-                Vector3 delta = point - origin;
-
-                vertices.Add(point);
-                uvs.Add(new Vector2(
-                    Vector3.Dot(delta, uAxis),
-                    Vector3.Dot(delta, vAxis)
-                ));
-            }
-
-            for (int i = 1; i < polygon.Count - 1; i++)
-            {
-                triangles.Add(startIndex);
-                triangles.Add(startIndex + i);
-                triangles.Add(startIndex + i + 1);
-            }
-        }
-
-        private static void AddQuadFacingNormal(
-            Vector3 v0,
-            Vector3 v1,
-            Vector3 v2,
-            Vector3 v3,
-            Vector3 desiredNormal,
-            List<Vector3> vertices,
-            List<int> triangles,
-            List<Vector2> uvs)
-        {
-            Vector3 currentNormal = Vector3.Cross(v1 - v0, v2 - v0).normalized;
-
-            if (Vector3.Dot(currentNormal, desiredNormal.normalized) < 0f)
-            {
-                AddQuad(
-                    v3,
-                    v2,
-                    v1,
-                    v0,
-                    vertices,
-                    triangles,
-                    uvs
-                );
-            }
-            else
-            {
-                AddQuad(
-                    v0,
-                    v1,
-                    v2,
-                    v3,
-                    vertices,
-                    triangles,
-                    uvs
-                );
-            }
-        }
-
-        private static void AddQuad(
-            Vector3 v0,
-            Vector3 v1,
-            Vector3 v2,
-            Vector3 v3,
-            List<Vector3> vertices,
-            List<int> triangles,
-            List<Vector2> uvs)
-        {
-            int startIndex = vertices.Count;
-
-            float width = Vector3.Distance(v0, v1);
-            float height = Vector3.Distance(v1, v2);
-
-            vertices.Add(v0);
-            vertices.Add(v1);
-            vertices.Add(v2);
-            vertices.Add(v3);
-
-            uvs.Add(new Vector2(0f, 0f));
-            uvs.Add(new Vector2(width, 0f));
-            uvs.Add(new Vector2(width, height));
-            uvs.Add(new Vector2(0f, height));
-
-            triangles.Add(startIndex);
-            triangles.Add(startIndex + 1);
-            triangles.Add(startIndex + 2);
-
-            triangles.Add(startIndex);
-            triangles.Add(startIndex + 2);
-            triangles.Add(startIndex + 3);
-        }
-
         private static int AddVertex(
             Vector3 vertex,
             Vector2 uv,
@@ -605,17 +527,38 @@ namespace ProceduralEnvironment
             return index;
         }
 
+        private static List<int> AddRingVerticesWithCircularUvs(
+            List<Vector3> ring,
+            float radiusX,
+            float radiusZ,
+            List<Vector3> vertices,
+            List<Vector2> uvs)
+        {
+            List<int> indices = new List<int>();
+
+            for (int i = 0; i < ring.Count; i++)
+            {
+                indices.Add(AddVertex(
+                    ring[i],
+                    CircularUv(ring[i], radiusX, radiusZ),
+                    vertices,
+                    uvs
+                ));
+            }
+
+            return indices;
+        }
+
         private static Vector2 CircularUv(
             Vector3 point,
             float radiusX,
             float radiusZ)
         {
             float u = 0.5f;
+            float v = 0.5f;
 
             if (radiusX > Epsilon)
                 u += point.x / (radiusX * 2f);
-
-            float v = 0.5f;
 
             if (radiusZ > Epsilon)
                 v += point.z / (radiusZ * 2f);

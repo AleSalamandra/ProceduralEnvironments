@@ -58,14 +58,6 @@ namespace ProceduralEnvironment
             return rootObject.transform;
         }
 
-        protected Transform GetBuildingGeneratedRoot(ProceduralBuilding building)
-        {
-            if (building == null)
-                return null;
-
-            return building.GetGeneratedRoot();
-        }
-
         protected void RequestBuildingRegenerate()
         {
             ProceduralBuilding building = GetComponent<ProceduralBuilding>();

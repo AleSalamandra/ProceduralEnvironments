@@ -30,7 +30,6 @@ namespace ProceduralEnvironment
             roofThickness = Mathf.Max(0.01f, roofThickness);
 
             Transform root = GetOrCreateGeneratedRoot();
-
             GameObject roofObject = GetOrCreateRoofObject(root);
 
             MeshFilter meshFilter = roofObject.GetComponent<MeshFilter>();
