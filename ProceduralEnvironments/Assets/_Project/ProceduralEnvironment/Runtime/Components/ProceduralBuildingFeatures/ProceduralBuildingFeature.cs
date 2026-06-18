@@ -11,9 +11,12 @@ namespace ProceduralEnvironment
 
         protected abstract string GeneratedRootName { get; }
 
+        protected virtual bool ClearBeforeRebuild => true;
+
         public void Rebuild(ProceduralBuilding building)
         {
-            ClearGeneratedContent();
+            if (ClearBeforeRebuild)
+                ClearGeneratedContent();
 
             if (!generate)
                 return;

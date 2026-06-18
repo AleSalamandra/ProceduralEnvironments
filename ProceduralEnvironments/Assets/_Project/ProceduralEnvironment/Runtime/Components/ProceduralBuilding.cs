@@ -60,6 +60,7 @@ namespace ProceduralEnvironment
         public float WallHeight => wallHeight;
         public float WallThickness => wallThickness;
         public float WallTextureScale => wallTextureScale;
+        public int CircleSegments => circleSegments;
 
         public bool SupportsRoundedCorners =>
             footprintType == BuildingFootprintType.Rectangle ||
